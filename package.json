@@ -1,11 +1,12 @@
 {
-  "name": "GravityStar",
-  "version": "1.0.0",
+  "name": "gravity-star",
+  "version": "1.0.1",
   "description": "Throw massive asteroids on the Solar System.",
   "keywords": [
     "interaction",
     "pointer-events"
   ],
+  "homepage": "https://sylvainlano.github.io/GravityStar/",
   "main": "src/index.js",
   "dependencies": {
     "@react-three/drei": "^9.78.1",
@@ -17,9 +18,11 @@
     "three": "0.154.0"
   },
   "scripts": {
+    "predeploy" : "npm run build",
+    "deploy" : "gh-pages -d build",
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "test": "react-scripts test --env=jsdom",
+    "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
   "browserslist": [

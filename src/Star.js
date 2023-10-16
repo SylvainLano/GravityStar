@@ -11,7 +11,7 @@ const Star = ({ size, starIntensity }) => {
   useEffect(() => {
     const textureLoader = new THREE.TextureLoader();
     textureLoader.load(
-      '/img/2k_sun.jpg',
+      './img/2k_sun.jpg',
       (texture) => {
         texture = adjustBrightness(texture, starIntensity/5); // Divide by 5 for the texture not to burn too fast
         // Create a new material with the loaded texture

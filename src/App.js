@@ -73,7 +73,7 @@ function SimulationParameters({ starSize, onStarSizeChange, planetSizeFactor, on
         <input
           type="range"
           id="asteroid-sensitivity"
-          min={0}
+          min={-100}
           max={100}
           step={10}
           value={asteroidGravityFactor}
@@ -88,9 +88,9 @@ function SimulationParameters({ starSize, onStarSizeChange, planetSizeFactor, on
         <input
           type="range"
           id="planet-gravity-factor"
-          min={0}
-          max={1000}
-          step={100}
+          min={-2400}
+          max={2600}
+          step={500}
           value={planetGravityFactor}
           onChange={(e) => onPlanetGravityFactorChange(parseFloat(e.target.value))}
         />
@@ -108,7 +108,7 @@ function SimulationParameters({ starSize, onStarSizeChange, planetSizeFactor, on
         <input
           type="range"
           id="star-mass"
-          min={333000}
+          min={-9667000}
           max={10333000}
           step={1000000}
           value={starMass}

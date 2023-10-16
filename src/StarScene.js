@@ -150,7 +150,7 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
       position: new THREE.Vector3((0.8+starSize), 0, 0),
       velocity: new THREE.Vector3(0, 0, -(10 / 938)),
       rotation: { x: 0, y: 0.00017, z: 0 },
-      planetTexture: '/img/2k_mercury.jpg',
+      planetTexture: './img/2k_mercury.jpg',
       mass: 0.055,
       shouldCorrectOrbit: true
     },
@@ -161,7 +161,7 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
       position: new THREE.Vector3((1.44+starSize), 0, 0),
       velocity: new THREE.Vector3(0, 0, -(10 / 1559)),
       rotation: { x: 0, y: 0.000041, z: 0 },
-      planetTexture: '/img/2k_venus_atmosphere.jpg',
+      planetTexture: './img/2k_venus_atmosphere.jpg',
       mass: 0.815,
       shouldCorrectOrbit: true
     },
@@ -172,7 +172,7 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
       position: new THREE.Vector3((2+starSize), 0, 0),
       velocity: new THREE.Vector3(0, 0, -(10 / 1910)),
       rotation: { x: 0, y: 0.01, z: 0 },
-      planetTexture: '/img/2k_earth_daymap.jpg',
+      planetTexture: './img/2k_earth_daymap.jpg',
       mass: 1,
       shouldCorrectOrbit: true
     },
@@ -183,7 +183,7 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
       position: new THREE.Vector3((3.04+starSize), 0, 0),
       velocity: new THREE.Vector3(0, 0, -(10 / 2621)),
       rotation: { x: 0, y: 0.01, z: 0 },
-      planetTexture: '/img/2k_mars.jpg',
+      planetTexture: './img/2k_mars.jpg',
       mass: 0.107,
       shouldCorrectOrbit: true
     },
@@ -194,7 +194,7 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
       position: new THREE.Vector3((6.2+starSize), 0, 0),
       velocity: new THREE.Vector3(0, 0, -(10 / 6583)),
       rotation: { x: 0, y: 0.024, z: 0 },
-      planetTexture: '/img/2k_jupiter.jpg',
+      planetTexture: './img/2k_jupiter.jpg',
       mass: 316,
       shouldCorrectOrbit: true
     },
@@ -205,7 +205,7 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
       position: new THREE.Vector3((9.5+starSize), 0, 0),
       velocity: new THREE.Vector3(0, 0, -(10 / 10373)),
       rotation: { x: 0, y: 0.0229, z: 0 },
-      planetTexture: '/img/2k_saturn.jpg',
+      planetTexture: './img/2k_saturn.jpg',
       mass: 95,
       shouldCorrectOrbit: true
     },
@@ -216,7 +216,7 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
       position: new THREE.Vector3((13+starSize), 0, 0),
       velocity: new THREE.Vector3(0, 0, -(10 / 17517)),
       rotation: { x: 0, y: 0.0141, z: 0 },
-      planetTexture: '/img/2k_uranus.jpg',
+      planetTexture: './img/2k_uranus.jpg',
       mass: 14.53,
       shouldCorrectOrbit: true
     },
@@ -227,7 +227,7 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
       position: new THREE.Vector3((17+starSize), 0, 0),
       velocity: new THREE.Vector3(0, 0, -(10 / 24500)),
       rotation: { x: 0, y: 0.015, z: 0 },
-      planetTexture: '/img/2k_neptune.jpg',
+      planetTexture: './img/2k_neptune.jpg',
       mass: 17.15,
       shouldCorrectOrbit: true
     }
@@ -240,7 +240,7 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
   const asteroidScale = 0.02;  
   const [asteroidGLTFIndex, setAsteroidGLTFIndex] = useState(0);
   for (let i = 0; i < 10; i++) {
-    gltfLoader.load('/models/meteorite/scene.gltf', (gltf) => {
+    gltfLoader.load('./models/meteorite/scene.gltf', (gltf) => {
       // Modify the scale of the loaded model if needed
       gltf.scene.scale.set(asteroidScale, asteroidScale, asteroidScale);
       const asteroidGLTF = gltf; // Clone to avoid modifying the same instance
@@ -251,7 +251,7 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
   // Method to retrieve the next asteroidGLTF, to give them time to load when player creates asteroids too fast for one single model to be loaded
   function getAsteroidGLTF () {
     const asteroidModel = cachedAsteroidGLTFs.splice(asteroidGLTFIndex, 1)[0]; // Remove used model
-    gltfLoader.load('/models/meteorite/scene.gltf', (gltf) => {
+    gltfLoader.load('./models/meteorite/scene.gltf', (gltf) => {
       gltf.scene.scale.set(asteroidScale, asteroidScale, asteroidScale);
       const newAsteroidGLTF = gltf;
       cachedAsteroidGLTFs.push(newAsteroidGLTF); // Add a new model to the cache
