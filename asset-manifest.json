@@ -1,13 +1,13 @@
 {
   "files": {
     "main.css": "/GravityStar/static/css/main.c647301d.css",
-    "main.js": "/GravityStar/static/js/main.e34c59d5.js",
+    "main.js": "/GravityStar/static/js/main.ee632165.js",
     "index.html": "/GravityStar/index.html",
     "main.c647301d.css.map": "/GravityStar/static/css/main.c647301d.css.map",
-    "main.e34c59d5.js.map": "/GravityStar/static/js/main.e34c59d5.js.map"
+    "main.ee632165.js.map": "/GravityStar/static/js/main.ee632165.js.map"
   },
   "entrypoints": [
     "static/css/main.c647301d.css",
-    "static/js/main.e34c59d5.js"
+    "static/js/main.ee632165.js"
   ]
 }
