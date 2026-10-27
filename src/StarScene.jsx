@@ -1,7 +1,7 @@
 import { useRef, useMemo, useState, useCallback, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 import Asteroid from './Asteroid';
 import StarParticle from './StarParticle';
@@ -264,7 +264,8 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
   const spotlight = new THREE.SpotLight(0xffffff); // Set the light color
   spotlight.position.copy(cameraPosition); // Set the light position
   // Set the initial intensity to 0 to turn it off
-  spotlight.intensity = 4;
+  // (15 with physical lights matches the former intensity of 4 with three.js' legacy lights)
+  spotlight.intensity = 15;
   // Set spotlight parameters
   spotlight.distance = 4; // Adjust the light's distance
   spotlight.angle = Math.PI / 3; // Set the cone angle (adjust as needed)
@@ -305,6 +306,7 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
   }, [starSize, starIntensity]);
 
   // Creating the lights coming from the star to illuminate the system
+  // Intensity, distance and decay are tuned for physical lights to match the former look of three.js' legacy lights
   const numberOfLights = 20;
   const lights = useMemo(() => {
     const updatedLights = [];
@@ -318,9 +320,9 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
         <pointLight
           key={i}
           position={[xPos, yPos, 0]}
-          intensity={starIntensity / numberOfLights}
-          distance={30}
-          decay={5}
+          intensity={starIntensity * 3.6 / numberOfLights}
+          distance={19}
+          decay={0.75}
         />
       );
     }

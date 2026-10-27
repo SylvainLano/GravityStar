@@ -6,7 +6,7 @@ import ExplosionParticle from './ExplosionParticle';
 const Explosion = ({ index, scene, position, timestamp, terminateExplosion }) => {
   const explosionRef = useRef();
   const explosionDuration = 20000;
-  const maxLightIntensity = 3;
+  const maxLightIntensity = 3 * Math.PI; // Physical lights need a factor PI to match the former legacy lights
   const flickerSpeed = 0.002;
   const maxParticles = 50;
   const particlesPerFrame = 2; // Adjust this value as needed
@@ -15,7 +15,7 @@ const Explosion = ({ index, scene, position, timestamp, terminateExplosion }) =>
 
   // Create explosion light with variable intensity
   const explosionLight = useMemo(() => {
-    const light = new THREE.PointLight(0xff8800, maxLightIntensity, 5, 1); // Color, Intensity, Distance, Decay
+    const light = new THREE.PointLight(0xff8800, maxLightIntensity, 4, 0); // Color, Intensity, Distance, Decay
     light.position.copy(position);
     light.castShadow = true;
     return light;
