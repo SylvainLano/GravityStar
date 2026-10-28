@@ -3,13 +3,17 @@ import { useFrame, useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
 
 import { calculateGravitationalForce, frameScale } from './physics';
+import { useStyleLook } from './skins/SkinContext';
+import { createPlanetLook } from './skins/looks';
 
 // Reused on every frame by all planets, to avoid creating new objects
 const gravitationalForceVector = new THREE.Vector3();
 
-const Planet = ({ index, size, position, velocity, rotation, onStarCollision, planetTexture, starMass, starSize, mass, planetSizeFactor, shouldCorrectOrbit, starPosition, planets, planetGravityFactor, onPlanetCollision }) => {
+const Planet = ({ index, name, size, position, velocity, rotation, onStarCollision, planetTexture, starMass, starSize, mass, planetSizeFactor, shouldCorrectOrbit, starPosition, planets, planetGravityFactor, onPlanetCollision }) => {
   const planetRef = useRef();
   const texture = useLoader(THREE.TextureLoader, planetTexture);
+  // Materials of the stylized skins (null for the realistic one)
+  const look = useStyleLook(`planet:${name}`, (style, shared) => createPlanetLook(style, { shared, map: texture, name }));
 
   // Calculate neighbors for this asteroid based on the existing asteroids
   const planetNeighbors = useMemo(() => {
@@ -131,11 +135,27 @@ const Planet = ({ index, size, position, velocity, rotation, onStarCollision, pl
     }
   });
 
+  const radius = size * planetSizeFactor;
+  // The keys make React replace the mesh when going to or from the realistic skin: updated in place,
+  // the realistic material would be overwritten by the reset of the stylized one
   return (
-    <mesh ref={planetRef} receiveShadow castShadow>
-      <sphereGeometry args={[size * planetSizeFactor, 64, 64]} />
-      <meshStandardMaterial map={texture} />
-    </mesh>
+    <group ref={planetRef}>
+      {look ? (
+        <mesh key="stylized" material={look.material}>
+          <sphereGeometry args={[radius, 64, 64]} />
+          {look.outline && (
+            <mesh material={look.outline}>
+              <sphereGeometry args={[radius, 64, 64]} />
+            </mesh>
+          )}
+        </mesh>
+      ) : (
+        <mesh key="realistic" receiveShadow castShadow>
+          <sphereGeometry args={[radius, 64, 64]} />
+          <meshStandardMaterial map={texture} />
+        </mesh>
+      )}
+    </group>
   );
 };
 

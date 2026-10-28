@@ -3,9 +3,11 @@ import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 
 import { frameScale } from './physics';
+import { useSkin } from './skins/SkinContext';
 
 const ExplosionParticle = ({ position, velocity, timestamp }) => {
   const particleRef = useRef();
+  const skin = useSkin();
 
   // Create a random color within the specified range
   const randomColor = useMemo(() => {
@@ -19,15 +21,22 @@ const ExplosionParticle = ({ position, velocity, timestamp }) => {
 
   // Create particle material and mesh
   // The material is created once and faded directly (React frees it when the particle is removed)
-  const particleMaterial = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: randomColor,
+  // (in the stylized skins, flat colors of the skin that the explosion's light doesn't change)
+  const particleMaterial = useMemo(() => {
+    if (skin.debris) {
+      const [from, to] = skin.debris;
+      return new THREE.MeshBasicMaterial({
+        color: new THREE.Color(from).lerp(new THREE.Color(to), Math.random()),
         transparent: true,
-        opacity: 1.0, // Start fully visible
-      }),
-    [randomColor]
-  );
+        opacity: 1.0,
+      });
+    }
+    return new THREE.MeshStandardMaterial({
+      color: randomColor,
+      transparent: true,
+      opacity: 1.0, // Start fully visible
+    });
+  }, [randomColor, skin]);
   const particleGeometry = useMemo(() => new THREE.SphereGeometry(0.01, 3, 3), []);
 
   useFrame((state, delta) => {

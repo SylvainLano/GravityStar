@@ -17,6 +17,37 @@ body {
   overflow: hidden; /* Prevent page scrolling */
 }
 
+/* Backgrounds of the skins, behind the transparent canvas */
+.App[data-skin='comic'] {
+  background-color: #252c70; /* Ultramarine rather than black, so that the ink outlines stand out against the sky */
+}
+
+.App[data-skin='anime'] {
+  background-color: #050a1f;
+}
+
+/* Pastel: paper */
+.App[data-skin='pastel'] {
+  background-color: #efe6d3;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.42 0 0 0 0 0.35 0 0 0 0 0.25 0.5 0 0 0 -0.15'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse at 30% 20%, rgba(255, 255, 255, 0.5), transparent 60%),
+    radial-gradient(ellipse at 80% 90%, rgba(180, 160, 130, 0.25), transparent 55%);
+}
+
+/* Arcade: big pixels, scaled up without smoothing, and scanlines over the scene */
+.App[data-skin='arcade'] .scene canvas {
+  image-rendering: pixelated;
+}
+
+.App[data-skin='arcade'] .scene::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(to bottom, transparent 0 2px, rgba(0, 0, 0, 0.18) 2px 3px);
+}
+
 .simulation-parameters {
   margin:75px;
   position: absolute;
@@ -167,6 +198,21 @@ body {
 .skin-swatch:focus-visible {
   outline: 2px solid #ffd23f;
   outline-offset: 2px;
+}
+
+/* Dark ink on the light paper of the pastel skin */
+.App[data-skin='pastel'] .simulation-parameters .title,
+.App[data-skin='pastel'] .skin-selector {
+  color: #3e4470;
+}
+
+.App[data-skin='pastel'] .simulation-parameters,
+.App[data-skin='pastel'] .skin-swatch {
+  border-color: #3e4470;
+}
+
+.App[data-skin='pastel'] .skin-swatch.active {
+  outline-color: #3e4470;
 }
 
 /* Credits for the 3D model and the textures, discreet in the bottom right corner */

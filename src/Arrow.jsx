@@ -2,6 +2,8 @@ import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
+import { useSkin } from './skins/SkinContext';
+
 // Reused on every frame, to avoid creating new objects
 const coneAxis = new THREE.Vector3(0, 1, 0);
 const direction = new THREE.Vector3();
@@ -10,6 +12,7 @@ const direction = new THREE.Vector3();
 // referenceDistance is the distance from the camera at which the arrow has its original thickness
 const Arrow = ({ aim, referenceDistance }) => {
   const arrowRef = useRef();
+  const skin = useSkin();
 
   useFrame(({ camera }) => {
     const arrow = arrowRef.current;
@@ -34,7 +37,7 @@ const Arrow = ({ aim, referenceDistance }) => {
     // Drawn over the rest of the scene, as when it had its own canvas
     <mesh ref={arrowRef} visible={false} renderOrder={1}>
       <coneGeometry args={[0.01, 1, 8]} />
-      <meshBasicMaterial color="red" depthTest={false} />
+      <meshBasicMaterial color={skin.arrow ?? 'red'} depthTest={false} />
     </mesh>
   );
 };

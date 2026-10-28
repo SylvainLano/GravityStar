@@ -4,6 +4,8 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 import { calculateGravitationalForce, frameScale } from './physics';
+import { useStyleLook } from './skins/SkinContext';
+import { createAsteroidLook } from './skins/looks';
 
 const asteroidModelUrl = './models/meteorite/meteorite.glb';
 const asteroidScale = 0.02;
@@ -17,8 +19,10 @@ const Asteroid = ({ index, position, velocity, angularVelocity, active, moving, 
   const asteroidRef = useRef();
 
   // The model is loaded once for all asteroids: each one gets a light clone sharing its geometry, material and texture
+  // (in the stylized skins, a copy of the model with the skin's materials, made once for all asteroids)
   const { scene } = useLoader(GLTFLoader, asteroidModelUrl);
-  const model = useMemo(() => scene.clone(), [scene]);
+  const look = useStyleLook('asteroid', (style, shared) => createAsteroidLook(style, { shared, scene }));
+  const model = useMemo(() => (look ?? scene).clone(), [look, scene]);
 
   // Add a state variable for activity
   const [isActive, setIsActive] = useState(active);

@@ -181,6 +181,7 @@ function App() {
         planetGravityFactor={planetGravityFactor}
         starIntensity={starIntensity}
         launchMode={launchMode}
+        skinId={skinId}
       />
       <SimulationParameters
         starSize={starSize}

@@ -10,6 +10,8 @@ export function createSharedUniforms() {
     // Spotlight at the camera that shows the asteroids before they are launched (spotRange 0 switches it off)
     spotPosition: { value: new THREE.Vector3() },
     spotRange: { value: 0 },
+    // Luminosity of the star: 0 switches it off, 1 is the normal light, 2 twice as bright
+    starLight: { value: 1 },
     pixelRatio: { value: 1 },
     resolution: { value: new THREE.Vector2(1, 1) }, // Size of the drawing buffer, in device pixels
   };
@@ -50,6 +52,7 @@ export const helpers = /* glsl */ `
   uniform vec3 lightPosition;
   uniform vec3 spotPosition;
   uniform float spotRange;
+  uniform float starLight;
   uniform float pixelRatio;
 
   // Lighting (dot of the normal and the light direction) from the star, or from the spotlight where it is brighter
@@ -59,6 +62,10 @@ export const helpers = /* glsl */ `
     float reach = 1.0 - smoothstep(spotRange * 0.6, spotRange, distance(spotPosition, position));
     return max(ndl, mix(-1.0, spot, reach));
   }
+
+  // The luminosity of the star goes from the colors lit by the spotlight alone (star off) to the colors lit by the star,
+  // and beyond them for a brighter star: the lit side moves further away from the shadow, which doesn't change
+  vec3 byStarLight(vec3 spotOnly, vec3 lit) { return clamp(mix(spotOnly, lit, starLight), 0.0, 1.0); }
 
   vec3 toSrgb(vec3 color) { return pow(max(color, 0.0), vec3(1.0 / 2.2)); }
   float brightness(vec3 color) { return dot(color, vec3(0.299, 0.587, 0.114)); }
@@ -103,20 +110,7 @@ const celFragmentShader = /* glsl */ `
   varying vec3 vWorldNormal;
   varying vec3 vWorldPosition;
 
-  void main() {
-    // Blurred (lower mipmap), saturated and posterized texture: details turn into vivid flat color areas
-    vec3 albedo = toSrgb(texture2D(map, vUv, 2.0).rgb);
-    albedo = clamp(mix(vec3(brightness(albedo)), albedo, 1.5), 0.0, 1.0);
-    albedo = floor(albedo * 6.0 + 0.5) / 6.0;
-
-  #ifdef EMISSIVE
-    gl_FragColor = vec4(min(albedo * 1.15, vec3(1.0)), 1.0);
-  #else
-    vec3 N = normalize(vWorldNormal);
-    vec3 L = normalize(lightPosition - vWorldPosition);
-    vec3 V = normalize(cameraPosition - vWorldPosition);
-    float ndl = withSpot(dot(N, L), N, vWorldPosition);
-
+  vec3 shade(vec3 albedo, float ndl, vec3 N, vec3 V) {
     // Shadow in a colored tint rather than gray, full colors in the middle band, a brighter lit band
     float toMid = smoothstep(-0.03, 0.03, ndl);
     float toLit = smoothstep(0.42, 0.48, ndl);
@@ -133,8 +127,24 @@ const celFragmentShader = /* glsl */ `
     float deepShadow = 1.0 - smoothstep(-0.55, -0.45, ndl);
     color = mix(color, inkColor, 0.55 * hatch * shadow);
     color = mix(color, inkColor, 0.55 * crossHatch * deepShadow);
+    return min(color, vec3(1.0));
+  }
 
-    gl_FragColor = vec4(min(color, vec3(1.0)), 1.0);
+  void main() {
+    // Blurred (lower mipmap), saturated and posterized texture: details turn into vivid flat color areas
+    vec3 albedo = toSrgb(texture2D(map, vUv, 2.0).rgb);
+    albedo = clamp(mix(vec3(brightness(albedo)), albedo, 1.5), 0.0, 1.0);
+    albedo = floor(albedo * 6.0 + 0.5) / 6.0;
+
+  #ifdef EMISSIVE
+    gl_FragColor = vec4(min(albedo * 1.15 * starLight, vec3(1.0)), 1.0);
+  #else
+    vec3 N = normalize(vWorldNormal);
+    vec3 L = normalize(lightPosition - vWorldPosition);
+    vec3 V = normalize(cameraPosition - vWorldPosition);
+    vec3 spotOnly = shade(albedo, withSpot(-1.0, N, vWorldPosition), N, V);
+    vec3 lit = shade(albedo, withSpot(dot(N, L), N, vWorldPosition), N, V);
+    gl_FragColor = vec4(byStarLight(spotOnly, lit), 1.0);
   #endif
   }
 `;
@@ -146,6 +156,14 @@ const pastelFragmentShader = /* glsl */ `
   varying vec3 vWorldNormal;
   varying vec3 vWorldPosition;
   varying vec3 vDirection;
+
+  vec3 shade(vec3 albedo, float light, float grain) {
+    // Shadows painted in a cool hue rather than just darker
+    vec3 color = mix(albedo * vec3(0.5, 0.56, 0.85), albedo, light);
+
+    // Pigment granulation, stronger in the washes of shadow
+    return color * (1.0 - (0.15 + 0.25 * (1.0 - light)) * (grain - 0.5) * 2.0);
+  }
 
   void main() {
     vec3 N = normalize(vWorldNormal);
@@ -160,17 +178,14 @@ const pastelFragmentShader = /* glsl */ `
     float grain = fbm3(vDirection * 7.0);
 
   #ifdef EMISSIVE
-    float light = 1.0;
+    vec3 color = min(shade(albedo, 1.0, grain) * starLight, vec3(1.0));
   #else
     // Soft but well defined terminator, so that the planets keep their volume
-    float light = smoothstep(-0.2, 0.25, withSpot(dot(N, L), N, vWorldPosition) + 0.15 * (grain - 0.5));
+    float edge = 0.15 * (grain - 0.5);
+    vec3 spotOnly = shade(albedo, smoothstep(-0.2, 0.25, withSpot(-1.0, N, vWorldPosition) + edge), grain);
+    vec3 lit = shade(albedo, smoothstep(-0.2, 0.25, withSpot(dot(N, L), N, vWorldPosition) + edge), grain);
+    vec3 color = byStarLight(spotOnly, lit);
   #endif
-
-    // Shadows painted in a cool hue rather than just darker
-    vec3 color = mix(albedo * vec3(0.5, 0.56, 0.85), albedo, light);
-
-    // Pigment granulation, stronger in the washes of shadow
-    color *= 1.0 - (0.15 + 0.25 * (1.0 - light)) * (grain - 0.5) * 2.0;
 
     // Pigment pooling along the silhouette
     float rim = 1.0 - max(dot(N, V), 0.0);
@@ -193,22 +208,7 @@ const animeFragmentShader = /* glsl */ `
   varying vec3 vWorldNormal;
   varying vec3 vWorldPosition;
 
-  void main() {
-    vec3 N = normalize(vWorldNormal);
-    vec3 V = normalize(cameraPosition - vWorldPosition);
-    vec3 L = normalize(lightPosition - vWorldPosition);
-
-    // Slightly more saturated colors
-    vec3 albedo = toSrgb(texture2D(map, vUv, 0.5).rgb);
-    albedo = clamp(mix(vec3(brightness(albedo)), albedo, 1.3), 0.0, 1.0);
-
-  #ifdef EMISSIVE
-    // White-hot core, with hard steps towards an orange edge
-    float facing = max(dot(N, V), 0.0);
-    vec3 sun = facing > 0.75 ? vec3(1.0, 0.98, 0.9) : facing > 0.45 ? vec3(1.0, 0.86, 0.45) : vec3(1.0, 0.6, 0.25);
-    gl_FragColor = vec4(sun * (0.9 + 0.2 * brightness(albedo)), 1.0);
-  #else
-    float ndl = withSpot(dot(N, L), N, vWorldPosition);
+  vec3 shade(vec3 albedo, float ndl, vec3 N, vec3 V) {
     float lit = smoothstep(-0.015, 0.015, ndl);
     vec3 color = mix(albedo * vec3(0.22, 0.25, 0.42), albedo, lit);
 
@@ -226,8 +226,27 @@ const animeFragmentShader = /* glsl */ `
     // Atmosphere on the lit side of the edge
     float fresnel = pow(1.0 - max(dot(N, V), 0.0), 3.0);
     color += rimColor * fresnel * smoothstep(-0.1, 0.5, ndl);
+    return min(color, vec3(1.0));
+  }
 
-    gl_FragColor = vec4(min(color, vec3(1.0)), 1.0);
+  void main() {
+    vec3 N = normalize(vWorldNormal);
+    vec3 V = normalize(cameraPosition - vWorldPosition);
+    vec3 L = normalize(lightPosition - vWorldPosition);
+
+    // Slightly more saturated colors
+    vec3 albedo = toSrgb(texture2D(map, vUv, 0.5).rgb);
+    albedo = clamp(mix(vec3(brightness(albedo)), albedo, 1.3), 0.0, 1.0);
+
+  #ifdef EMISSIVE
+    // White-hot core, with hard steps towards an orange edge
+    float facing = max(dot(N, V), 0.0);
+    vec3 sun = facing > 0.75 ? vec3(1.0, 0.98, 0.9) : facing > 0.45 ? vec3(1.0, 0.86, 0.45) : vec3(1.0, 0.6, 0.25);
+    gl_FragColor = vec4(min(sun * (0.9 + 0.2 * brightness(albedo)) * starLight, vec3(1.0)), 1.0);
+  #else
+    vec3 spotOnly = shade(albedo, withSpot(-1.0, N, vWorldPosition), N, V);
+    vec3 lit = shade(albedo, withSpot(dot(N, L), N, vWorldPosition), N, V);
+    gl_FragColor = vec4(byStarLight(spotOnly, lit), 1.0);
   #endif
   }
 `;
@@ -245,15 +264,16 @@ const arcadeFragmentShader = /* glsl */ `
     float dither = bayer4(gl_FragCoord.xy);
 
   #ifdef EMISSIVE
-    float light = 1.0;
+    vec3 color = min(albedo * 1.07 * starLight, vec3(1.0));
   #else
     vec3 N = normalize(vWorldNormal);
     vec3 L = normalize(lightPosition - vWorldPosition);
-    float light = floor(clamp(withSpot(dot(N, L), N, vWorldPosition), 0.0, 1.0) * 3.0 + dither) / 3.0;
+    float spotOnly = floor(clamp(withSpot(-1.0, N, vWorldPosition), 0.0, 1.0) * 3.0 + dither) / 3.0;
+    float lit = floor(clamp(withSpot(dot(N, L), N, vWorldPosition), 0.0, 1.0) * 3.0 + dither) / 3.0;
+    vec3 color = byStarLight(albedo * (0.12 + 0.95 * spotOnly), albedo * (0.12 + 0.95 * lit));
   #endif
 
     // Dithering only between light levels, the palette itself is cut into flat steps
-    vec3 color = albedo * (0.12 + 0.95 * light);
     color = floor(color * 6.0 + 0.5) / 6.0;
     gl_FragColor = vec4(color, 1.0);
   }
@@ -275,6 +295,7 @@ export function createSurfaceMaterial(style, { map, shared, emissive = false, ri
       lightPosition: shared.lightPosition,
       spotPosition: shared.spotPosition,
       spotRange: shared.spotRange,
+      starLight: shared.starLight,
       pixelRatio: shared.pixelRatio,
       shadowTint: { value: rgb('#6b55b5') }, // Violet shadows
       inkColor: { value: rgb('#1a1440') }, // Midnight blue ink
@@ -329,11 +350,12 @@ export function createOutlineMaterial({ shared, thickness, color = '#000000', li
   });
 }
 
-// Halo drawn on a camera-facing square around the star
-export function createHaloMaterial(style) {
+// Halo drawn on a camera-facing square around the star, stronger or weaker with the star's luminosity
+export function createHaloMaterial(style, { shared }) {
   if (style === 'pastel') {
     // A warm wash around the star, with an irregular edge
     return new THREE.ShaderMaterial({
+      uniforms: { starLight: shared.starLight },
       vertexShader: flatVertexShader,
       fragmentShader: helpers + /* glsl */ `
         varying vec2 vUv;
@@ -341,7 +363,7 @@ export function createHaloMaterial(style) {
           vec2 c = vUv - 0.5;
           float d = length(c) * 2.0;
           float alpha = (1.0 - smoothstep(0.25, 1.0, d + 0.35 * (fbm3(vec3(c * 5.0, 1.3)) - 0.5))) * 0.5;
-          gl_FragColor = vec4(1.0, 0.8, 0.5, alpha);
+          gl_FragColor = vec4(1.0, 0.8, 0.5, min(alpha * starLight, 1.0));
         }
       `,
       transparent: true,
@@ -350,22 +372,31 @@ export function createHaloMaterial(style) {
   }
   // Anime: lens glare with long thin rays
   return new THREE.ShaderMaterial({
+    uniforms: { starLight: shared.starLight },
     vertexShader: flatVertexShader,
     fragmentShader: /* glsl */ `
+      uniform float starLight;
       varying vec2 vUv;
       void main() {
         vec2 c = (vUv - 0.5) * 2.0;
-        float glow = exp(-length(c) * 5.0) * 0.8;
+        // (faded out before the edge of the square, so that its border never shows)
+        float glow = exp(-length(c) * 5.0) * 0.8 * (1.0 - smoothstep(0.6, 1.0, length(c)));
         float rays = exp(-abs(c.y) * 70.0) * (1.0 - smoothstep(0.0, 1.0, abs(c.x)))
                    + exp(-abs(c.x) * 70.0) * (1.0 - smoothstep(0.0, 1.0, abs(c.y)));
         vec2 r = mat2(0.7071, -0.7071, 0.7071, 0.7071) * c;
         rays += 0.5 * (exp(-abs(r.y) * 90.0) * (1.0 - smoothstep(0.0, 0.7, abs(r.x)))
                      + exp(-abs(r.x) * 90.0) * (1.0 - smoothstep(0.0, 0.7, abs(r.y))));
-        gl_FragColor = vec4(vec3(1.0, 0.85, 0.6) * (glow + rays), 1.0);
+        float intensity = (glow + rays) * starLight;
+        gl_FragColor = vec4(min(vec3(1.0, 0.85, 0.6) * intensity, 1.0), min(intensity, 1.0));
       }
     `,
     transparent: true,
     depthWrite: false,
-    blending: THREE.AdditiveBlending,
+    // Light added to what is behind, which also covers the transparent canvas in front of a background drawn by CSS
+    blending: THREE.CustomBlending,
+    blendSrc: THREE.OneFactor,
+    blendDst: THREE.OneFactor,
+    blendSrcAlpha: THREE.OneFactor,
+    blendDstAlpha: THREE.OneMinusSrcAlphaFactor,
   });
 }

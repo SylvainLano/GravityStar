@@ -9,6 +9,9 @@ import TwinklingStar from './TwinklingStar';
 import Arrow from './Arrow';
 import Planet from './Planet';
 import Explosion from './Explosion';
+import { findSkin } from './skins/skins';
+import { SkinProvider } from './skins/SkinContext';
+import BackgroundStars from './skins/BackgroundStars';
 
 // Setting up the positions shared by the scene and the launching controls
 const starPosition = new THREE.Vector3(0, 0, 0);
@@ -29,6 +32,8 @@ const maxOrbitalLaunchDistance = 25;
 const dragVelocityScale = 0.009;
 // Scaling the momentum toward the star for the launch
 const momentumScale = 0.0005;
+// Reach of the spotlight at the camera
+const spotRange = 4;
 
 // Reused by the pointer handlers, to avoid creating new objects on every move
 const raycaster = new THREE.Raycaster();
@@ -37,9 +42,10 @@ const dragPoint = new THREE.Vector3();
 const directionToStar = new THREE.Vector3();
 const projection = new THREE.Vector3();
 
-function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroidGravityFactor, planetGravityFactor, starIntensity, launchMode}) {
+function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroidGravityFactor, planetGravityFactor, starIntensity, launchMode, skinId}) {
 
   const sceneRef = useRef();
+  const skin = findSkin(skinId);
 
   const [explosions, setExplosions] = useState([]);
   // Identifiers of asteroids and explosions: a counter outside React state never hands out the same one twice
@@ -150,7 +156,7 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
     // 15 with physical lights matches the former intensity of 4 with three.js' legacy lights
     light.intensity = 15;
     // Set spotlight parameters
-    light.distance = 4; // Adjust the light's distance
+    light.distance = spotRange; // Adjust the light's distance
     light.angle = Math.PI / 3; // Set the cone angle (adjust as needed)
     light.penumbra = 0; // No penumbra: the edge of the light is sharp
     light.target.position.copy(starPosition);
@@ -391,9 +397,12 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
 
   return (
       <Canvas
+        className="scene"
         shadows
         camera={{ position: cameraPosition }}
         gl={{antialias: true}}
+        // Skins with big pixels are rendered at a lower resolution, then scaled up without smoothing (see styles.css)
+        dpr={skin.pixelSize ? window.devicePixelRatio / skin.pixelSize : [1, 2]}
         // Full screen, without scrolling or zooming the page when aiming with a finger
         style={{ width: '100vw', height: '100vh', touchAction: 'none' }}
         onCreated={(state) => { three.current = state; }}
@@ -402,6 +411,7 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
       >
+        <SkinProvider skinId={skinId} lightPosition={starPosition} starIntensity={starIntensity} spotPosition={cameraPosition} spotRange={spotRange}>
         {/* Set up the scene and camera */}
         <scene ref={sceneRef}>
 
@@ -418,8 +428,8 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
         
           <color attach="background" args={['#000']} />
           
-          {/* Use the stars variable to create the background */}
-          {stars}
+          {/* Use the stars variable to create the background (points of a fixed size in the stylized skins) */}
+          {skin.stars ? <BackgroundStars {...skin.stars} /> : stars}
 
           {/* Use the particles variable to create the animation of the star */}
           {starParticles}
@@ -483,6 +493,7 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
           <Arrow aim={aim} referenceDistance={cameraPosition.distanceTo(asteroidStartingPosition)} />
 
         </scene>
+        </SkinProvider>
       </Canvas>
   );
 }
