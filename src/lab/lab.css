@@ -27,14 +27,14 @@ body {
     radial-gradient(ellipse at 80% 90%, rgba(180, 160, 130, 0.25), transparent 55%);
 }
 
-/* 16-bit arcade and Parodius: big pixels and scanlines */
+/* 16-bit arcade and Neko Nebula: big pixels and scanlines */
 .lab.arcade canvas,
-.lab.parodius canvas {
+.lab.neko canvas {
   image-rendering: pixelated;
 }
 
 .lab.arcade::after,
-.lab.parodius::after {
+.lab.neko::after {
   content: '';
   position: absolute;
   inset: 0;

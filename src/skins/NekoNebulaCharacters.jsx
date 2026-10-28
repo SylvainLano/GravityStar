@@ -5,9 +5,9 @@ import * as THREE from 'three';
 import {
   createStarGeometry, createEarGeometry, createTentacleGeometry, createOnigiriGeometry, createSnorkelGeometry,
   createNightcapGeometry, nightcapTip, createSpikesGeometry,
-} from './parodius';
+} from './nekoNebula';
 
-// Characters of the Parodius look, built for a radius of 1 and scaled to the body's radius.
+// Characters of the Neko Nebula skin, built for a radius of 1 and scaled to the body's radius.
 // The planets spin on themselves through spinRef (Uranus around its tilted axis), the star always faces the player.
 
 const sphereGeometry = new THREE.SphereGeometry(1, 96, 96);
@@ -230,12 +230,8 @@ const characters = { mercury: Onigiri, venus: Diva, earth: Diver, mars: Octopus,
 const tilts = { uranus: [0, 0, THREE.MathUtils.degToRad(98)] };
 const noTilt = [0, 0, 0];
 
-// Whether a planet is drawn as a character in the Parodius look
-export function hasParodiusCharacter(name) {
-  return name in characters;
-}
-
-export function ParodiusPlanet({ name, radius, look, spinRef }) {
+// look: the materials made by createNekoCharacterLook for this planet
+export function NekoPlanet({ name, radius, look, spinRef }) {
   const Character = characters[name];
   return (
     <>
@@ -250,7 +246,7 @@ export function ParodiusPlanet({ name, radius, look, spinRef }) {
 }
 
 // The star always faces the player, as sprites do, swaying a little
-export function ParodiusStar({ radius, look }) {
+export function NekoStar({ radius, look }) {
   const ref = useRef();
   useFrame((state) => {
     ref.current.lookAt(state.camera.position);

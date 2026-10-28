@@ -26,6 +26,10 @@ body {
   background-color: #050a1f;
 }
 
+.App[data-skin='neko-nebula'] {
+  background-color: #120a3a;
+}
+
 /* Pastel: paper */
 .App[data-skin='pastel'] {
   background-color: #efe6d3;
@@ -35,12 +39,14 @@ body {
     radial-gradient(ellipse at 80% 90%, rgba(180, 160, 130, 0.25), transparent 55%);
 }
 
-/* Arcade: big pixels, scaled up without smoothing, and scanlines over the scene */
-.App[data-skin='arcade'] .scene canvas {
+/* Arcade and Neko Nebula: big pixels, scaled up without smoothing, and scanlines over the scene */
+.App[data-skin='arcade'] .scene canvas,
+.App[data-skin='neko-nebula'] .scene canvas {
   image-rendering: pixelated;
 }
 
-.App[data-skin='arcade'] .scene::after {
+.App[data-skin='arcade'] .scene::after,
+.App[data-skin='neko-nebula'] .scene::after {
   content: '';
   position: absolute;
   inset: 0;

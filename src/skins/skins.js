@@ -1,7 +1,7 @@
 // The skins of the game, in the order of the selector: each one changes the look of the game, never its physics.
 // swatch: the two colors of its round button in the selector.
 // The stylized skins also have:
-//   style: the materials of src/skins/styleMaterials.js used for the planets, the star and the asteroids
+//   style: the materials used for the planets, the star and the asteroids (see looks.js)
 //   stars: the background stars (see BackgroundStars.jsx)
 //   pixelSize: rendered with big pixels, each pixelSize pixels of the screen wide
 //   arrow, debris, sunParticles: colors of the launching arrow, of the explosion debris and of the particles around the star
@@ -39,6 +39,18 @@ export const skins = [
     arrow: '#ff3333',
     debris: ['#ff6600', '#ffcc00'],
     sunParticles: ['#ff6600', '#ffff33'],
+  },
+  {
+    // A homage to the Parodius series of Konami, with original characters (see nekoNebula.js)
+    id: 'neko-nebula',
+    name: 'Neko Nebula',
+    style: 'neko',
+    swatch: ['#120a3a', '#ff7ad9'],
+    stars: { colors: ['#ffffff', '#ff7ad9', '#7ae8ff', '#ffe066'], size: 1.5, round: false, opacity: 1, stepped: true },
+    pixelSize: 1.5,
+    arrow: '#ff5fa2',
+    debris: ['#ff7ad9', '#ffe066'],
+    sunParticles: ['#ffd23f', '#ff9a3c'],
   },
   {
     id: 'anime',

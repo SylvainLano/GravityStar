@@ -8,8 +8,7 @@ import { createSharedUniforms } from '../skins/styleMaterials';
 import { createPlanetLook, createSunLook, createAsteroidLook } from '../skins/looks';
 import { skins } from '../skins/skins';
 import BackgroundStars from '../skins/BackgroundStars';
-import { createParodiusLook } from '../skins/parodius';
-import { ParodiusPlanet, ParodiusStar, hasParodiusCharacter } from '../skins/ParodiusCharacters';
+import { NekoPlanet, NekoStar } from '../skins/NekoNebulaCharacters';
 
 // The candidate styles, in the order of the number keys
 const styles = [
@@ -18,18 +17,18 @@ const styles = [
   { id: 'pastel', name: 'Pastel', description: 'Soft washes on paper: cool shadows rather than dark ones, pigment grain, darker and ragged edges.' },
   { id: 'anime', name: 'Anime', description: 'Hard terminator with a warm band, screentone in the shadow, atmosphere rim and lens glare.' },
   { id: 'arcade', name: '16-bit arcade', description: 'Low resolution, a few light levels, limited palette and ordered dithering.' },
-  { id: 'parodius', name: 'Parodius', description: 'Prototype: flat vivid colors drawn from the real textures, sprite lighting, Jupiter as a tabby cat and the star in sunglasses.' },
+  { id: 'neko', name: 'Neko Nebula', description: 'Homage to Parodius: flat vivid colors drawn from the real textures, sprite lighting, and the planets and the star as characters.' },
 ];
 
 // Background of each style (pastel has no background color: its paper is drawn by CSS behind the canvas),
-// and stars of the styles that aren't skins of the game yet (the others come from skins.js)
+// and stars of the realistic style, drawn as points here (the stars of the other styles come from skins.js)
 const backdrops = {
   realistic: { background: '#000000', stars: { color: '#ffffff', size: 2, round: true, opacity: 0.8 } },
   cel: { background: '#252c70' },
   pastel: { background: null },
   anime: { background: '#050a1f' },
   arcade: { background: '#000000' },
-  parodius: { background: '#120a3a', stars: { colors: ['#ffffff', '#ff7ad9', '#7ae8ff', '#ffe066'], size: 1.5, round: false, opacity: 1 } },
+  neko: { background: '#120a3a' },
 };
 
 // Planets as in the game: size (multiplied by the planet size factor), orbit radius and days per orbit.
@@ -66,26 +65,19 @@ function buildLooks({ maps, sunMap, gltf, shared }) {
   const looks = {
     realistic: {
       planets: Object.fromEntries(planets.map((planet) => [planet.name, { material: new THREE.MeshStandardMaterial({ map: maps[planet.name] }) }])),
-      sun: new THREE.MeshBasicMaterial({ map: realisticSunMap }),
+      sun: { material: new THREE.MeshBasicMaterial({ map: realisticSunMap }) },
       asteroid: gltf.scene.clone(true),
     },
   };
 
   // The same materials as in the game
-  for (const style of ['cel', 'pastel', 'anime', 'arcade']) {
-    const sun = createSunLook(style, { shared, map: sunMap });
+  for (const style of ['cel', 'pastel', 'anime', 'arcade', 'neko']) {
     looks[style] = {
       planets: Object.fromEntries(planets.map((planet) => [planet.name, createPlanetLook(style, { shared, map: maps[planet.name], name: planet.name })])),
-      sun: sun.material,
-      sunOutline: sun.outline,
-      halo: sun.halo,
-      haloSize: sun.haloSize,
+      sun: createSunLook(style, { shared, map: sunMap }),
       asteroid: createAsteroidLook(style, { shared, scene: gltf.scene }),
     };
   }
-
-  // Parodius: flat vivid colors, sprite lighting and a thin dark line, with characters for some planets and the star
-  looks.parodius = createParodiusLook({ shared, maps, gltf });
 
   return looks;
 }
@@ -100,8 +92,8 @@ function Body({ radius, material, outlineMaterial, spinRef }) {
   );
 }
 
-// character: in the Parodius style, the materials of the character drawn instead of the planet
-function Planet({ planet, look, character, view, rotate, planetSizeFactor }) {
+// look.character: in the Neko Nebula style, the materials of the character drawn instead of the planet
+function Planet({ planet, look, view, rotate, planetSizeFactor }) {
   const orbitRef = useRef();
   const spinRef = useRef();
   const angle = useRef(planet.angle);
@@ -119,8 +111,8 @@ function Planet({ planet, look, character, view, rotate, planetSizeFactor }) {
 
   return (
     <group ref={orbitRef} position={isGame ? undefined : planet.closeUp.position} rotation={[0, 0, planet.name === 'earth' ? 0.4 : 0]}>
-      {character
-        ? <ParodiusPlanet name={planet.name} radius={radius} look={character} spinRef={spinRef} />
+      {look.character
+        ? <NekoPlanet name={planet.name} radius={radius} look={look.character} spinRef={spinRef} />
         : <Body radius={radius} material={look.material} outlineMaterial={look.outline} spinRef={spinRef} />}
     </group>
   );
@@ -198,13 +190,13 @@ function LabScene({ style, view, lightAngle, rotate, planetSizeFactor }) {
       <BackgroundStars {...stars} />
 
       <group position={sunPosition}>
-        {look.star
-          ? <ParodiusStar radius={sunRadius} look={look.star} />
-          : <Body radius={sunRadius} material={look.sun} outlineMaterial={look.sunOutline} spinRef={sunSpin} />}
-        {look.halo && (
+        {look.sun.character
+          ? <NekoStar radius={sunRadius} look={look.sun.character} />
+          : <Body radius={sunRadius} material={look.sun.material} outlineMaterial={look.sun.outline} spinRef={sunSpin} />}
+        {look.sun.halo && (
           <Billboard>
-            <mesh material={look.halo}>
-              <planeGeometry args={[sunRadius * look.haloSize, sunRadius * look.haloSize]} />
+            <mesh material={look.sun.halo}>
+              <planeGeometry args={[sunRadius * look.sun.haloSize, sunRadius * look.sun.haloSize]} />
             </mesh>
           </Billboard>
         )}
@@ -215,7 +207,6 @@ function LabScene({ style, view, lightAngle, rotate, planetSizeFactor }) {
           key={planet.name}
           planet={planet}
           look={look.planets[planet.name]}
-          character={look.characters && hasParodiusCharacter(planet.name) ? look.characters[planet.name] : null}
           view={view}
           rotate={rotate}
           planetSizeFactor={planetSizeFactor}
@@ -239,7 +230,7 @@ export default function Lab() {
   const [pixelSize, setPixelSize] = useState(1.5);
   const [planetSizeFactor, setPlanetSizeFactor] = useState(2);
 
-  // Keys 1 to 5 switch between the styles, G between the close-up and game views
+  // Keys 1 to 6 switch between the styles, G between the close-up and game views
   useEffect(() => {
     const onKeyDown = (e) => {
       const keyStyle = styles[Number(e.key) - 1];
@@ -250,8 +241,8 @@ export default function Lab() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
-  // The arcade and Parodius styles are rendered with big pixels, each pixelSize pixels of the screen, then scaled up without smoothing
-  const pixelated = style === 'arcade' || style === 'parodius';
+  // The arcade and Neko Nebula styles are rendered with big pixels, each pixelSize pixels of the screen, then scaled up without smoothing
+  const pixelated = style === 'arcade' || style === 'neko';
   const dpr = pixelated ? window.devicePixelRatio / pixelSize : [1, 2];
   const current = styles.find((candidate) => candidate.id === style);
 

@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { frameScale } from './physics';
 import { useStyleLook } from './skins/SkinContext';
 import { createSunLook } from './skins/looks';
+import { NekoStar } from './skins/NekoNebulaCharacters';
 
 const Star = ({ size, starIntensity }) => {
   const starRef = useRef();
@@ -33,9 +34,11 @@ const Star = ({ size, starIntensity }) => {
   }, [starMaterial, starIntensity]);
 
   useFrame((state, delta) => {
-    // Rotate the star (by 0.001 per 60 fps step)
-    starRef.current.rotation.y += 0.001 * frameScale(delta);
+    // Rotate the star (by 0.001 per 60 fps step), unless it is a character, which moves by itself
+    if (starRef.current) starRef.current.rotation.y += 0.001 * frameScale(delta);
   });
+
+  if (look?.character) return <NekoStar radius={size} look={look.character} />;
 
   return (
     <group>

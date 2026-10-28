@@ -3,12 +3,13 @@ import { mergeVertices, mergeGeometries } from 'three/addons/utils/BufferGeometr
 
 import { helpers, surfaceVertexShader, rgb, createOutlineMaterial } from './styleMaterials';
 
-// Parodius: flat vivid colors drawn from the real textures, sprite lighting with dithered tones,
-// and characters: a tabby cat (Jupiter), an octopus (Mars), a planet in a straw hat (Saturn)
-// and a puffy five-point star wearing sunglasses.
+// Neko Nebula, a homage to the Parodius series of Konami: flat vivid colors drawn from the real textures,
+// sprite lighting with dithered tones, and the planets drawn as characters (an onigiri, a diva, a diver, an octopus,
+// a tabby cat, a planet in a straw hat, a sleeper and a pufferfish) around a puffy five-point star wearing sunglasses.
+// The designs are original: none of them is taken from the games.
 
 // For each body, pairs of [real color as displayed, flat vivid color replacing it]
-export const parodiusPalettes = {
+export const nekoPalettes = {
   mercury: [['#9a9a9a', '#b8b8d0'], ['#6a6a6a', '#8484a4'], ['#cfcfcf', '#e4e4f4'], ['#3c3c3c', '#5c5c80']],
   venus: [['#e6cc8c', '#ffe08a'], ['#c8a060', '#f5b752'], ['#f4e6c0', '#fff4cc']],
   earth: [['#0a1e50', '#1f4fd1'], ['#1c4a78', '#3a8fe8'], ['#3c5028', '#2fae4a'], ['#8c7850', '#e8c060'], ['#e6e6e6', '#ffffff']],
@@ -22,9 +23,9 @@ export const parodiusPalettes = {
 };
 
 // The dark line around the sprites, rather than pure black
-export const parodiusInk = '#2a0f3a';
+export const nekoInk = '#2a0f3a';
 
-const parodiusFragmentShader = /* glsl */ `
+const nekoFragmentShader = /* glsl */ `
   uniform sampler2D map;
   uniform float hasMap;
   uniform vec3 baseColor;
@@ -81,7 +82,8 @@ const parodiusFragmentShader = /* glsl */ `
     float tone = floor(light * 3.0 + bayer4(gl_FragCoord.xy) * 0.999);
     if (selfLit > 0.5) tone = max(tone, 1.0);
 
-    vec3 shaded = tone < 0.5 ? color * vec3(0.42, 0.36, 0.62)
+    vec3 darkest = color * vec3(0.42, 0.36, 0.62);
+    vec3 shaded = tone < 0.5 ? darkest
                 : tone < 1.5 ? color * vec3(0.7, 0.64, 0.86)
                 : tone < 2.5 ? color
                 : mix(color, vec3(1.0, 0.98, 0.88), 0.4);
@@ -89,13 +91,14 @@ const parodiusFragmentShader = /* glsl */ `
     // A small white glint
     if (dot(N, normalize(L + V)) > 0.9975) shaded = vec3(1.0);
 
-    gl_FragColor = vec4(shaded, 1.0);
+    // With the star switched off, everything takes its darkest tone, and the star itself goes dark
+    gl_FragColor = vec4(byStarLight(selfLit > 0.5 ? vec3(0.0) : darkest, shaded), 1.0);
   }
 `;
 
 // faceRect: center and half size of the face in the surface's UV coordinates. By default, a wide face on the front of a sphere
 // (about 115 degrees across), so that it stays readable when the planet is small.
-export function createParodiusMaterial({ shared, map = null, palette = null, color = '#ffffff', faceMap = null, faceRect = [0.25, 0.5, 0.16, 0.3], faceOnly = false, selfLit = false, unlit = false }) {
+export function createNekoMaterial({ shared, map = null, palette = null, color = '#ffffff', faceMap = null, faceRect = [0.25, 0.5, 0.16, 0.3], faceOnly = false, selfLit = false, unlit = false }) {
   const pairs = palette ?? [];
   const padded = (index) => Array.from({ length: 6 }, (_, i) => rgb(pairs[Math.min(i, pairs.length - 1)]?.[index] ?? '#000000'));
   return new THREE.ShaderMaterial({
@@ -113,10 +116,11 @@ export function createParodiusMaterial({ shared, map = null, palette = null, col
       selfLit: { value: selfLit ? 1 : 0 },
       unlit: { value: unlit ? 1 : 0 },
       lightPosition: shared.lightPosition,
+      starLight: shared.starLight,
       pixelRatio: shared.pixelRatio,
     },
     vertexShader: surfaceVertexShader,
-    fragmentShader: helpers + parodiusFragmentShader,
+    fragmentShader: helpers + nekoFragmentShader,
     transparent: faceOnly,
   });
 }
@@ -303,11 +307,11 @@ export function createCatFaceTexture() {
       c.fillStyle = '#ffd23a';
       c.fill();
       c.lineWidth = 1.6;
-      c.strokeStyle = parodiusInk;
+      c.strokeStyle = nekoInk;
       c.stroke();
       c.beginPath();
       c.ellipse(0, 0.3, 1.6, 5, 0, 0, Math.PI * 2);
-      c.fillStyle = parodiusInk;
+      c.fillStyle = nekoInk;
       c.fill();
       c.restore();
       c.fillStyle = '#ffffff';
@@ -322,7 +326,7 @@ export function createCatFaceTexture() {
     c.fillStyle = '#ff7aa8';
     c.fill();
     c.lineWidth = 1.2;
-    c.strokeStyle = parodiusInk;
+    c.strokeStyle = nekoInk;
     c.stroke();
 
     c.strokeStyle = '#5a2410';
@@ -366,7 +370,7 @@ export function createOctopusFaceTexture() {
       c.fillStyle = '#fff7ea';
       c.fill();
       c.clip();
-      c.fillStyle = parodiusInk;
+      c.fillStyle = nekoInk;
       c.beginPath();
       c.roundRect(x - 4.5, y - 0.5, 9, 3.4, 1.5);
       c.fill();
@@ -375,7 +379,7 @@ export function createOctopusFaceTexture() {
       c.fillRect(x - 8, y - 8, 16, 6.5);
       c.restore();
       c.lineWidth = 1.6;
-      c.strokeStyle = parodiusInk;
+      c.strokeStyle = nekoInk;
       c.beginPath();
       c.arc(x, y, 7, 0, Math.PI * 2);
       c.stroke();
@@ -392,7 +396,7 @@ export function createOctopusFaceTexture() {
     c.fillStyle = '#ff8fb0';
     c.fill();
     c.lineWidth = 1.4;
-    c.strokeStyle = parodiusInk;
+    c.strokeStyle = nekoInk;
     c.stroke();
     c.beginPath();
     c.arc(32, 43, 1.3, 0, Math.PI * 2);
@@ -414,7 +418,7 @@ export function createSaturnFaceTexture() {
       c.fillStyle = '#fffaf0';
       c.fill();
       c.clip();
-      c.fillStyle = parodiusInk;
+      c.fillStyle = nekoInk;
       c.beginPath();
       c.arc(x - 2.5, y + 0.8, 2.6, 0, Math.PI * 2);
       c.fill();
@@ -423,7 +427,7 @@ export function createSaturnFaceTexture() {
       c.fillRect(x - 7, y - 6, 14, 5);
       c.restore();
       c.lineWidth = 1.6;
-      c.strokeStyle = parodiusInk;
+      c.strokeStyle = nekoInk;
       c.beginPath();
       c.ellipse(x, y, 6, 4.5, 0, 0, Math.PI * 2);
       c.stroke();
@@ -434,7 +438,7 @@ export function createSaturnFaceTexture() {
     }
 
     c.lineWidth = 1.8;
-    c.strokeStyle = parodiusInk;
+    c.strokeStyle = nekoInk;
     c.beginPath();
     c.moveTo(26, 31);
     c.quadraticCurveTo(33, 35, 39, 29);
@@ -465,7 +469,7 @@ export function createOnigiriTexture() {
     for (let x = 20; x < 44; x += 6) c.fillRect(x, 48, 1.5, 14);
 
     c.lineCap = 'round';
-    c.strokeStyle = parodiusInk;
+    c.strokeStyle = nekoInk;
     c.lineWidth = 1.8;
     c.beginPath();
     c.moveTo(22, 25);
@@ -473,7 +477,7 @@ export function createOnigiriTexture() {
     c.moveTo(42, 25);
     c.lineTo(35, 28);
     c.stroke();
-    c.fillStyle = parodiusInk;
+    c.fillStyle = nekoInk;
     for (const x of [26, 38]) {
       c.beginPath();
       c.ellipse(x, 31.5, 1.6, 2.2, 0, 0, Math.PI * 2);
@@ -520,7 +524,7 @@ export function createDivaFaceTexture() {
       c.fill();
       c.restore();
 
-      c.strokeStyle = parodiusInk;
+      c.strokeStyle = nekoInk;
       c.lineWidth = 1.8;
       c.beginPath();
       c.moveTo(x - 6.5, y);
@@ -543,13 +547,13 @@ export function createDivaFaceTexture() {
     c.quadraticCurveTo(32, 48, 25, 42);
     c.fillStyle = '#e0245e';
     c.fill();
-    c.strokeStyle = parodiusInk;
+    c.strokeStyle = nekoInk;
     c.lineWidth = 1.2;
     c.stroke();
     c.fillStyle = '#ff86a8';
     c.fillRect(29, 43, 3, 1.5);
 
-    c.fillStyle = parodiusInk;
+    c.fillStyle = nekoInk;
     c.beginPath();
     c.arc(41, 37, 1.2, 0, Math.PI * 2);
     c.fill();
@@ -578,9 +582,9 @@ export function createDiverFaceTexture() {
       c.fillStyle = '#ffffff';
       c.fill();
       c.lineWidth = 1.2;
-      c.strokeStyle = parodiusInk;
+      c.strokeStyle = nekoInk;
       c.stroke();
-      c.fillStyle = parodiusInk;
+      c.fillStyle = nekoInk;
       c.beginPath();
       c.arc(x + side * 0.5, y + 0.5, 2, 0, Math.PI * 2);
       c.fill();
@@ -598,7 +602,7 @@ export function createDiverFaceTexture() {
     c.roundRect(33, 41, 9, 5, 2);
     c.fill();
     c.lineWidth = 1.2;
-    c.strokeStyle = parodiusInk;
+    c.strokeStyle = nekoInk;
     c.stroke();
   });
 }
@@ -607,7 +611,7 @@ export function createDiverFaceTexture() {
 export function createSleeperFaceTexture() {
   return createFaceTexture((c) => {
     c.lineCap = 'round';
-    c.strokeStyle = parodiusInk;
+    c.strokeStyle = nekoInk;
     c.lineWidth = 1.8;
     for (const x of [22, 42]) {
       c.beginPath();
@@ -645,9 +649,9 @@ export function createFuguFaceTexture() {
       c.fillStyle = '#ffffff';
       c.fill();
       c.lineWidth = 1.6;
-      c.strokeStyle = parodiusInk;
+      c.strokeStyle = nekoInk;
       c.stroke();
-      c.fillStyle = parodiusInk;
+      c.fillStyle = nekoInk;
       c.beginPath();
       c.arc(x - side * 0.5, y - 1, 2.2, 0, Math.PI * 2);
       c.fill();
@@ -660,7 +664,7 @@ export function createFuguFaceTexture() {
     c.fillStyle = '#ffb3c6';
     c.fill();
     c.lineWidth = 1.4;
-    c.strokeStyle = parodiusInk;
+    c.strokeStyle = nekoInk;
     c.stroke();
     c.beginPath();
     c.ellipse(32, 42, 1.4, 1.1, 0, 0, Math.PI * 2);
@@ -692,7 +696,7 @@ export function createSleepZTexture() {
       c.lineTo(24, 24);
       c.stroke();
     };
-    c.strokeStyle = parodiusInk;
+    c.strokeStyle = nekoInk;
     c.lineWidth = 8;
     z();
     c.strokeStyle = '#ffffff';
@@ -722,7 +726,7 @@ export function createBrimTexture() {
   return createFaceTexture((c) => {
     const center = 128;
     const scale = center / 1.95;
-    const bands = [[1.95, parodiusInk], [1.92, '#f2d27e'], [1.72, '#c8953f'], [1.67, '#f6dc96'], [1.42, '#9e6a2a'], [1.37, '#e8bf68'], [1.06, parodiusInk]];
+    const bands = [[1.95, nekoInk], [1.92, '#f2d27e'], [1.72, '#c8953f'], [1.67, '#f6dc96'], [1.42, '#9e6a2a'], [1.37, '#e8bf68'], [1.06, nekoInk]];
     for (const [radius, color] of bands) {
       c.beginPath();
       c.arc(center, center, radius * scale, 0, Math.PI * 2);
@@ -784,61 +788,81 @@ export function createStarFaceTexture() {
     c.fillRect(20, 37, 26, 4);
     c.restore();
     c.lineWidth = 1.5;
-    c.strokeStyle = parodiusInk;
+    c.strokeStyle = nekoInk;
     c.stroke();
   });
 }
 
-// Every material of the Parodius look: maps holds the texture of each planet by name, gltf the asteroid model
-export function createParodiusLook({ shared, maps, gltf }) {
-  const outline = createOutlineMaterial({ shared, thickness: 1.5, color: parodiusInk, lightVariation: false });
-  const flat = (color, options = {}) => createParodiusMaterial({ shared, color, ...options });
-  const planet = (name, options = {}) => createParodiusMaterial({ shared, map: maps[name], palette: parodiusPalettes[name], ...options });
+// The dark line around the sprites
+function createNekoOutline(shared) {
+  return createOutlineMaterial({ shared, thickness: 1.5, color: nekoInk, lightVariation: false });
+}
 
-  const asteroid = gltf.scene.clone(true);
-  const meshes = [];
-  asteroid.traverse((object) => { if (object.isMesh) meshes.push(object); });
-  for (const mesh of meshes) {
-    mesh.material = createParodiusMaterial({ shared, map: mesh.material.map, palette: parodiusPalettes.asteroid });
-    mesh.add(new THREE.Mesh(mesh.geometry, outline));
-  }
+// Materials of the character drawn for the planet name (mercury... neptune), map being its photo texture
+// (see NekoNebulaCharacters.jsx for how each one is put together)
+export function createNekoCharacterLook({ shared, map, name }) {
+  const outline = createNekoOutline(shared);
+  const flat = (color, options = {}) => createNekoMaterial({ shared, color, ...options });
+  const planet = (options = {}) => createNekoMaterial({ shared, map, palette: nekoPalettes[name], ...options });
 
-  const brim = createParodiusMaterial({ shared, faceMap: createBrimTexture(), faceRect: [0.5, 0.5, 0.5, 0.5], faceOnly: true });
-  brim.side = THREE.DoubleSide;
-
-  return {
-    planets: Object.fromEntries(Object.keys(maps).map((name) => [name, { material: planet(name), outline }])),
-    // Planets drawn as characters
-    characters: {
-      mercury: { body: flat('#f7f5ef', { faceMap: createOnigiriTexture(), faceRect: [0.5, 0.5, 0.5, 0.5] }), outline },
-      venus: { body: planet('venus', { faceMap: createDivaFaceTexture() }), pearl: flat('#fdf6ee'), gold: flat('#ffcc33'), outline },
-      earth: { body: planet('earth', { faceMap: createDiverFaceTexture() }), strap: flat('#1b1b26'), snorkel: flat('#ffd23f'), outline },
-      jupiter: { head: planet('jupiter', { faceMap: createCatFaceTexture() }), ear: flat('#f08a2c'), innerEar: flat('#ff8fb0'), outline },
-      mars: { body: planet('mars', { faceMap: createOctopusFaceTexture() }), tentacle: flat('#e8553a'), outline },
-      saturn: {
+  switch (name) {
+    case 'mercury':
+      return { body: flat('#f7f5ef', { faceMap: createOnigiriTexture(), faceRect: [0.5, 0.5, 0.5, 0.5] }), outline };
+    case 'venus':
+      return { body: planet({ faceMap: createDivaFaceTexture() }), pearl: flat('#fdf6ee'), gold: flat('#ffcc33'), outline };
+    case 'earth':
+      return { body: planet({ faceMap: createDiverFaceTexture() }), strap: flat('#1b1b26'), snorkel: flat('#ffd23f'), outline };
+    case 'mars':
+      return { body: planet({ faceMap: createOctopusFaceTexture() }), tentacle: flat('#e8553a'), outline };
+    case 'jupiter':
+      return { head: planet({ faceMap: createCatFaceTexture() }), ear: flat('#f08a2c'), innerEar: flat('#ff8fb0'), outline };
+    case 'saturn': {
+      const brim = createNekoMaterial({ shared, faceMap: createBrimTexture(), faceRect: [0.5, 0.5, 0.5, 0.5], faceOnly: true });
+      brim.side = THREE.DoubleSide;
+      return {
         // The face is around the equator, under the brim of the hat
-        body: planet('saturn', { faceMap: createSaturnFaceTexture(), faceRect: [0.25, 0.42, 0.16, 0.2] }),
+        body: planet({ faceMap: createSaturnFaceTexture(), faceRect: [0.25, 0.42, 0.16, 0.2] }),
         crown: flat('#f0cc78', { faceMap: createStrawTexture(), faceRect: [0.5, 0.5, 0.5, 0.5] }),
         ribbon: flat('#283a9c'),
         brim,
         petal: flat('#ff5fa2'),
         flowerHeart: flat('#ffd23f'),
         outline,
-      },
-      uranus: {
-        body: planet('uranus', { faceMap: createSleeperFaceTexture() }),
+      };
+    }
+    case 'uranus':
+      return {
+        body: planet({ faceMap: createSleeperFaceTexture() }),
         cap: flat('#ffffff', { faceMap: createNightcapStripesTexture(), faceRect: [0.5, 0.5, 0.5, 0.5] }),
         capBand: flat('#f6f7ff'),
-        sleepZ: createParodiusMaterial({ shared, faceMap: createSleepZTexture(), faceRect: [0.5, 0.5, 0.5, 0.5], faceOnly: true, unlit: true }),
+        sleepZ: createNekoMaterial({ shared, faceMap: createSleepZTexture(), faceRect: [0.5, 0.5, 0.5, 0.5], faceOnly: true, unlit: true }),
         outline,
-      },
-      neptune: { body: planet('neptune', { faceMap: createFuguFaceTexture() }), spikes: flat('#ffe9a8'), fin: flat('#ffb02e'), outline },
-    },
-    star: {
-      body: flat('#ffd23f', { selfLit: true }),
-      face: createParodiusMaterial({ shared, faceMap: createStarFaceTexture(), faceRect: [0.5, 0.5, 0.5, 0.5], faceOnly: true, unlit: true }),
-      outline,
-    },
-    asteroid,
+      };
+    case 'neptune':
+      return { body: planet({ faceMap: createFuguFaceTexture() }), spikes: flat('#ffe9a8'), fin: flat('#ffb02e'), outline };
+    default:
+      return null;
+  }
+}
+
+// The star: a puffy five-point star in sunglasses
+export function createNekoStarLook({ shared }) {
+  return {
+    body: createNekoMaterial({ shared, color: '#ffd23f', selfLit: true }),
+    face: createNekoMaterial({ shared, faceMap: createStarFaceTexture(), faceRect: [0.5, 0.5, 0.5, 0.5], faceOnly: true, unlit: true }),
+    outline: createNekoOutline(shared),
   };
+}
+
+// A copy of the asteroid model in flat colors, with its outline
+export function createNekoAsteroidLook({ shared, scene }) {
+  const outline = createNekoOutline(shared);
+  const asteroid = scene.clone(true);
+  const meshes = [];
+  asteroid.traverse((object) => { if (object.isMesh) meshes.push(object); });
+  for (const mesh of meshes) {
+    mesh.material = createNekoMaterial({ shared, map: mesh.material.map, palette: nekoPalettes.asteroid });
+    mesh.add(new THREE.Mesh(mesh.geometry, outline));
+  }
+  return asteroid;
 }

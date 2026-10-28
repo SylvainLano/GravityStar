@@ -5,12 +5,14 @@ import * as THREE from 'three';
 import { calculateGravitationalForce, frameScale } from './physics';
 import { useStyleLook } from './skins/SkinContext';
 import { createPlanetLook } from './skins/looks';
+import { NekoPlanet } from './skins/NekoNebulaCharacters';
 
 // Reused on every frame by all planets, to avoid creating new objects
 const gravitationalForceVector = new THREE.Vector3();
 
 const Planet = ({ index, name, size, position, velocity, rotation, onStarCollision, planetTexture, starMass, starSize, mass, planetSizeFactor, shouldCorrectOrbit, starPosition, planets, planetGravityFactor, onPlanetCollision }) => {
-  const planetRef = useRef();
+  const planetRef = useRef(); // Moves along the orbit
+  const spinRef = useRef(); // Spins on itself, inside (for Uranus as a character, around its tilted axis)
   const texture = useLoader(THREE.TextureLoader, planetTexture);
   // Materials of the stylized skins (null for the realistic one)
   const look = useStyleLook(`planet:${name}`, (style, shared) => createPlanetLook(style, { shared, map: texture, name }));
@@ -123,9 +125,9 @@ const Planet = ({ index, name, size, position, velocity, rotation, onStarCollisi
       planetRef.current.position.copy(position);
 
       // Apply self-rotation (spin)
-      planetRef.current.rotation.x += rotation.x * steps;
-      planetRef.current.rotation.y += rotation.y * steps;
-      planetRef.current.rotation.z += rotation.z * steps;
+      spinRef.current.rotation.x += rotation.x * steps;
+      spinRef.current.rotation.y += rotation.y * steps;
+      spinRef.current.rotation.z += rotation.z * steps;
 
       if (distanceToStar <= Math.abs(starSize-size)) {
         // Notify the parent component about the collision
@@ -140,20 +142,26 @@ const Planet = ({ index, name, size, position, velocity, rotation, onStarCollisi
   // the realistic material would be overwritten by the reset of the stylized one
   return (
     <group ref={planetRef}>
-      {look ? (
-        <mesh key="stylized" material={look.material}>
-          <sphereGeometry args={[radius, 64, 64]} />
-          {look.outline && (
-            <mesh material={look.outline}>
+      {look?.character ? (
+        <NekoPlanet name={name} radius={radius} look={look.character} spinRef={spinRef} />
+      ) : (
+        <group ref={spinRef}>
+          {look ? (
+            <mesh key="stylized" material={look.material}>
               <sphereGeometry args={[radius, 64, 64]} />
+              {look.outline && (
+                <mesh material={look.outline}>
+                  <sphereGeometry args={[radius, 64, 64]} />
+                </mesh>
+              )}
+            </mesh>
+          ) : (
+            <mesh key="realistic" receiveShadow castShadow>
+              <sphereGeometry args={[radius, 64, 64]} />
+              <meshStandardMaterial map={texture} />
             </mesh>
           )}
-        </mesh>
-      ) : (
-        <mesh key="realistic" receiveShadow castShadow>
-          <sphereGeometry args={[radius, 64, 64]} />
-          <meshStandardMaterial map={texture} />
-        </mesh>
+        </group>
       )}
     </group>
   );
