@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Night sky, an orbit around the sun, and an asteroid on the orbit -->
+  <circle cx="32" cy="32" r="32" fill="#000"/>
+  <ellipse cx="32" cy="32" rx="26" ry="10" fill="none" stroke="#6f84a8" stroke-width="2.5" transform="rotate(-20 32 32)"/>
+  <circle cx="32" cy="32" r="12" fill="#ffc83d"/>
+  <circle cx="56" cy="23" r="4.5" fill="#a08f7c"/>
+</svg>
