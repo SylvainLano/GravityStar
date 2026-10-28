@@ -3,13 +3,14 @@ import { useFrame, useLoader } from '@react-three/fiber';
 import { Billboard } from '@react-three/drei';
 import * as THREE from 'three';
 
-import { frameScale } from './physics';
+import { useSimulation } from './SimulationClock';
 import { useStyleLook } from './skins/SkinContext';
 import { createSunLook } from './skins/looks';
 import { NekoStar } from './skins/NekoNebulaCharacters';
 
 const Star = ({ size, starIntensity }) => {
   const starRef = useRef();
+  const simulation = useSimulation();
   const texture = useLoader(THREE.TextureLoader, './img/2k_sun.jpg');
   // Materials of the stylized skins (null for the realistic one)
   const look = useStyleLook('sun', (style, shared) => createSunLook(style, { shared, map: texture }));
@@ -33,9 +34,9 @@ const Star = ({ size, starIntensity }) => {
     starMaterial.color.setScalar(starIntensity/5); // Divide by 5 for the texture not to burn too fast
   }, [starMaterial, starIntensity]);
 
-  useFrame((state, delta) => {
+  useFrame(() => {
     // Rotate the star (by 0.001 per 60 fps step), unless it is a character, which moves by itself
-    if (starRef.current) starRef.current.rotation.y += 0.001 * frameScale(delta);
+    if (starRef.current) starRef.current.rotation.y += 0.001 * simulation.current.steps;
   });
 
   if (look?.character) return <NekoStar radius={size} look={look.character} />;

@@ -2,11 +2,13 @@ import * as THREE from 'three';
 import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 
-import { frameScale } from './physics';
+import { useSimulation } from './SimulationClock';
 import { useSkin } from './skins/SkinContext';
 
+// timestamp: when the explosion started, in the simulated time (see SimulationClock)
 const ExplosionParticle = ({ position, velocity, timestamp }) => {
   const particleRef = useRef();
+  const simulation = useSimulation();
   const skin = useSkin();
 
   // Create a random color within the specified range
@@ -39,13 +41,13 @@ const ExplosionParticle = ({ position, velocity, timestamp }) => {
   }, [randomColor, skin]);
   const particleGeometry = useMemo(() => new THREE.SphereGeometry(0.01, 3, 3), []);
 
-  useFrame((state, delta) => {
+  useFrame(() => {
     // Update particle position based on velocity (per 60 fps step)
     if (velocity) {
-      particleRef.current.position.addScaledVector(velocity, frameScale(delta));
+      particleRef.current.position.addScaledVector(velocity, simulation.current.steps);
     }
     // Calculate elapsed time since the timestamp
-    const elapsedMilliseconds = Date.now() - timestamp;
+    const elapsedMilliseconds = simulation.current.time - timestamp;
     const fadeDuration = 20000; // 20 seconds in milliseconds
 
     // Gradually reduce the opacity over the specified duration

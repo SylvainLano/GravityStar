@@ -2,12 +2,13 @@ import * as THREE from 'three';
 import { useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 
-import { frameScale } from './physics';
+import { useSimulation } from './SimulationClock';
 import { useSkin } from './skins/SkinContext';
 
 const StarParticle = ({ startPosition, starSize, starIntensity }) => {
 
     const particleRef = useRef();
+    const simulation = useSimulation();
     const skin = useSkin();
     const maxDistance = useRef(starSize+0.01);
     const [direction] = useState(new THREE.Vector3(
@@ -27,10 +28,10 @@ const StarParticle = ({ startPosition, starSize, starIntensity }) => {
     // Generate a random color for the particle (the next ones are set directly on the material)
     const [initialColor] = useState(() => pickColor(new THREE.Color()));
 
-    useFrame((state, delta) => {
+    useFrame(() => {
       // Move the particle directly (by direction per 60 fps step): going through React state would re-render it on every frame
       const position = particleRef.current.position;
-      position.addScaledVector(direction, frameScale(delta));
+      position.addScaledVector(direction, simulation.current.steps);
 
       if (position.distanceTo(startPosition) > maxDistance.current) {
         // Change the direction vector when the particle reaches the maximum distance

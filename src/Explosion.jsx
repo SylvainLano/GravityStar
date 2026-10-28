@@ -2,9 +2,12 @@ import * as THREE from 'three';
 import React, { useRef, useLayoutEffect, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import ExplosionParticle from './ExplosionParticle';
+import { useSimulation } from './SimulationClock';
 
+// timestamp: when the explosion started, in the simulated time (see SimulationClock), so that it stops during a pause
 const Explosion = ({ index, lights, position, timestamp, terminateExplosion }) => {
   const explosionRef = useRef();
+  const simulation = useSimulation();
   const explosionDuration = 20000;
   const maxLightIntensity = 3 * Math.PI; // Physical lights need a factor PI to match the former legacy lights
   const flickerSpeed = 0.002;
@@ -37,7 +40,7 @@ const Explosion = ({ index, lights, position, timestamp, terminateExplosion }) =
   // Update explosion light intensity on each frame
   useFrame(() => {
     if (active) {
-      const elapsedMilliseconds = Date.now() - timestamp;
+      const elapsedMilliseconds = simulation.current.time - timestamp;
       if (elapsedMilliseconds > explosionDuration) {
         terminateExplosion(index);
         setActive(false);

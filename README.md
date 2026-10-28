@@ -9,6 +9,7 @@ It was first created in ten days with React Three Fiber.
 - **Launch mode**, in the settings:
   - *Free Throw* (default): asteroids are created facing the camera and get a small push towards the star.
   - *Orbital Plane*: asteroids are created in the plane where the planets orbit, and thrown exactly where you aim.
+- **Speed**: the Speed setting slows the game down (1 is half speed), speeds it up (up to 10, five times faster) or pauses it (0). The space bar pauses and resumes the game. While it is paused, you can still create and aim asteroids: they all set off when the game resumes.
 - **Settings**: hover the "Change the settings here" panel (or tap it on a touch screen) to change the size and luminosity of the star, the size of the planets, the mass of the asteroids and the strength of gravity. Changing the star's mass breaks the orbits.
 - **Skins**: choose the look of the game with the round buttons in the top right corner, or with the ← and → keys. The choice is remembered, and shown in the link (e.g. `?skin=comic`) so that it can be shared.
 
@@ -49,6 +50,7 @@ The **style lab** (`lab.html`) is a development tool to design and compare the s
 
 - `src/StarScene.jsx`: the scene, the planets' data and the launching of the asteroids
 - `src/Planet.jsx`, `src/Asteroid.jsx`, `src/Star.jsx`, `src/physics.js`: the bodies and their gravity, computed with a fixed time step so that the game runs at the same speed whatever the frame rate
+- `src/SimulationClock.jsx`: the clock of the simulation, which follows the Speed setting and cuts fast frames into small steps so that the bodies follow the same paths at any speed
 - `src/skins/skins.js`: the list of skins, with their colors
 - `src/skins/styleMaterials.js`: the shaders of the stylized skins; `looks.js` makes the materials of each element with them
 - `src/skins/nekoNebula.js`, `src/skins/NekoNebulaCharacters.jsx`: the materials, pixel art faces and characters of Neko Nebula

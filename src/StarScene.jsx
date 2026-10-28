@@ -9,6 +9,8 @@ import TwinklingStar from './TwinklingStar';
 import Arrow from './Arrow';
 import Planet from './Planet';
 import Explosion from './Explosion';
+import { SimulationClock, SimulationContext, createSimulation } from './SimulationClock';
+import { asteroidCollisionDistance } from './physics';
 import { findSkin } from './skins/skins';
 import { SkinProvider } from './skins/SkinContext';
 import BackgroundStars from './skins/BackgroundStars';
@@ -42,10 +44,13 @@ const dragPoint = new THREE.Vector3();
 const directionToStar = new THREE.Vector3();
 const projection = new THREE.Vector3();
 
-function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroidGravityFactor, planetGravityFactor, starIntensity, launchMode, skinId}) {
+function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroidGravityFactor, planetGravityFactor, starIntensity, launchMode, skinId, speed}) {
 
   const sceneRef = useRef();
   const skin = findSkin(skinId);
+  // Clock of the simulation, advanced at the chosen speed (see SimulationClock)
+  const simulation = useRef(null);
+  if (simulation.current === null) simulation.current = createSimulation();
 
   const [explosions, setExplosions] = useState([]);
   // Identifiers of asteroids and explosions: a counter outside React state never hands out the same one twice
@@ -234,6 +239,8 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
     const plane = launchMode === 'orbital' ? orbitalLaunchPlane : screenLaunchPlane;
     const origin = pointerOnPlane(e, plane, aim.current.origin);
     if (!origin || (launchMode === 'orbital' && origin.length() > maxOrbitalLaunchDistance)) return;
+    // Never inside another asteroid, which it would hit at once (they may wait together while the game is paused)
+    if (asteroids.some((asteroid) => asteroid.position.distanceTo(origin) < asteroidCollisionDistance)) return;
 
     // Keep receiving the pointer events even if the pointer leaves the scene before being released
     try {
@@ -313,7 +320,7 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
     const newExplosion = {
       index: nextKey.current++,
       position: position,
-      timestamp: Date.now()
+      timestamp: simulation.current.time
     };
     setExplosions((prevExplosions) => [...prevExplosions, newExplosion]);
 
@@ -327,7 +334,7 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
     const newExplosion = {
       index: nextKey.current++,
       position: position,
-      timestamp: Date.now()
+      timestamp: simulation.current.time
     };
     setExplosions((prevExplosions) => [...prevExplosions, newExplosion]);
 
@@ -411,6 +418,8 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
       >
+        <SimulationContext.Provider value={simulation}>
+        <SimulationClock simulation={simulation} speed={speed} />
         <SkinProvider skinId={skinId} lightPosition={starPosition} starIntensity={starIntensity} spotPosition={cameraPosition} spotRange={spotRange}>
         {/* Set up the scene and camera */}
         <scene ref={sceneRef}>
@@ -494,6 +503,7 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
 
         </scene>
         </SkinProvider>
+        </SimulationContext.Provider>
       </Canvas>
   );
 }

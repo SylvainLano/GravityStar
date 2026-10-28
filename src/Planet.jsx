@@ -2,7 +2,8 @@ import React, { useRef, useMemo } from 'react';
 import { useFrame, useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
 
-import { calculateGravitationalForce, frameScale } from './physics';
+import { calculateGravitationalForce } from './physics';
+import { useSimulation } from './SimulationClock';
 import { useStyleLook } from './skins/SkinContext';
 import { createPlanetLook } from './skins/looks';
 import { NekoPlanet } from './skins/NekoNebulaCharacters';
@@ -14,6 +15,7 @@ const Planet = ({ index, name, size, position, velocity, rotation, onStarCollisi
   const planetRef = useRef(); // Moves along the orbit
   const spinRef = useRef(); // Spins on itself, inside (for Uranus as a character, around its tilted axis)
   const texture = useLoader(THREE.TextureLoader, planetTexture);
+  const simulation = useSimulation();
   // Materials of the stylized skins (null for the realistic one)
   const look = useStyleLook(`planet:${name}`, (style, shared) => createPlanetLook(style, { shared, map: texture, name }));
 
@@ -31,10 +33,8 @@ const Planet = ({ index, name, size, position, velocity, rotation, onStarCollisi
     return data;
   }, [index]);
   
-  useFrame((state, delta) => {
-    // Number of 60 fps steps to simulate for this frame
-    const steps = frameScale(delta);
-
+  // Move the planet by steps 60 fps steps (at most one at a time, see SimulationClock)
+  const advance = (steps) => {
     // Calculate the distance to the star
     const distanceToStar = position.distanceTo(starPosition);
 
@@ -135,6 +135,11 @@ const Planet = ({ index, name, size, position, velocity, rotation, onStarCollisi
       }
 
     }
+  };
+
+  useFrame(() => {
+    const { substeps, stepSize } = simulation.current;
+    for (let i = 0; i < substeps; i++) advance(stepSize);
   });
 
   const radius = size * planetSizeFactor;

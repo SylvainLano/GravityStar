@@ -11,6 +11,9 @@ export function frameScale(delta) {
   return Math.min(delta * referenceFrameRate, maxStepsPerFrame);
 }
 
+// Two asteroids closer than this collide
+export const asteroidCollisionDistance = 0.15;
+
 export function calculateGravitationalForce(objetMass, position, objectPosition, target = new THREE.Vector3()) {
   const gravitationalConstant = 6.674 * Math.pow(10, -11); // Adjusted gravitational constant
 

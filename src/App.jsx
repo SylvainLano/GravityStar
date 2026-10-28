@@ -1,10 +1,10 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import StarScene from './StarScene';
 import SkinSelector from './SkinSelector';
 import { initialSkinId, rememberSkin } from './skins/skins';
 
 // Create a separate component for simulation parameters
-function SimulationParameters({ starSize, onStarSizeChange, planetSizeFactor, onPlanetSizeFactorChange, starMass, onStarMassChange, asteroidMass, onAsteroidMassChange, asteroidGravityFactor, onAsteroidGravityFactorChange, planetGravityFactor, onPlanetGravityFactorChange, starIntensity, onStarIntensityChange, launchMode, onLaunchModeChange }) {
+function SimulationParameters({ speed, onSpeedChange, starSize, onStarSizeChange, planetSizeFactor, onPlanetSizeFactorChange, starMass, onStarMassChange, asteroidMass, onAsteroidMassChange, asteroidGravityFactor, onAsteroidGravityFactorChange, planetGravityFactor, onPlanetGravityFactorChange, starIntensity, onStarIntensityChange, launchMode, onLaunchModeChange }) {
   // With a mouse, the panel opens when hovered and closes when the mouse leaves it.
   // On touch screens, where nothing is hovered, a tap on its title opens or closes it.
   const [open, setOpen] = useState(false);
@@ -23,6 +23,20 @@ function SimulationParameters({ starSize, onStarSizeChange, planetSizeFactor, on
 
       <div className="parameter">
         <br />
+        <label htmlFor="speed">Speed (Space: pause):</label>
+        <input
+          type="range"
+          id="speed"
+          min={0}
+          max={10}
+          step={1}
+          value={speed}
+          onChange={(e) => onSpeedChange(parseFloat(e.target.value))}
+        />
+        <span>{speed === 0 ? 'Paused' : speed}</span>
+      </div>
+
+      <div className="parameter">
         <label htmlFor="star-size">Star Size:</label>
         <input
           type="range"
@@ -164,10 +178,27 @@ function App() {
   const [starIntensity, setStarIntensity] = useState(5); // increase the luminosity of the star
   const [launchMode, setLaunchMode] = useState('screen'); // asteroids are created facing the camera ('screen') or in the planets' plane ('orbital')
   const [skinId, setSkinId] = useState(initialSkinId); // the look of the game, see src/skins
+  const [speed, setSpeed] = useState(2); // speed of the simulation: 2 is the normal speed, 1 half of it, 0 the pause
 
   const changeSkin = useCallback((id) => {
     setSkinId(id);
     rememberSkin(id);
+  }, []);
+
+  // The space bar pauses the game, and resumes it at the speed it had before
+  const lastSpeed = useRef(speed);
+  useEffect(() => {
+    if (speed > 0) lastSpeed.current = speed;
+  }, [speed]);
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.code !== 'Space' || e.ctrlKey || e.metaKey || e.altKey || e.target.closest?.('input[type="text"], select, textarea')) return;
+      // Also keeps the space bar from pressing the focused button (a skin, the settings' title)
+      e.preventDefault();
+      if (!e.repeat) setSpeed((current) => (current > 0 ? 0 : lastSpeed.current));
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
   return (
@@ -182,8 +213,11 @@ function App() {
         starIntensity={starIntensity}
         launchMode={launchMode}
         skinId={skinId}
+        speed={speed}
       />
       <SimulationParameters
+        speed={speed}
+        onSpeedChange={setSpeed}
         starSize={starSize}
         onStarSizeChange={setStarSize}
         planetSizeFactor={planetSizeFactor}
@@ -202,6 +236,12 @@ function App() {
         onLaunchModeChange={setLaunchMode}
       />
       <SkinSelector skinId={skinId} onSkinChange={changeSkin} />
+      {/* Shown during the pause, even with the settings closed: a tap on it resumes the game too, for touch screens */}
+      {speed === 0 && (
+        <button type="button" className="paused" onClick={() => setSpeed(lastSpeed.current)}>
+          Paused · Space or tap to resume
+        </button>
+      )}
       {/* Credits required by the licenses of the 3D model and of the textures */}
       <div className="credits">
         <a href="https://sketchfab.com/3d-models/meteorite-0a503e5bec784cbc9082e2f6b2d9f701" target="_blank" rel="noopener noreferrer">"Meteorite"</a>
