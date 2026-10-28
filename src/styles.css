@@ -363,6 +363,12 @@ body {
   color: var(--ui-text);
 }
 
+/* As wide as the longest name (Neko Nebula), so that the sound button does not move when the skin changes */
+.skin-name {
+  min-width: 11ch;
+  text-align: right;
+}
+
 .skin-swatch {
   width: 22px;
   height: 22px;

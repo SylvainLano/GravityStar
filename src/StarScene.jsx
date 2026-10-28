@@ -122,7 +122,8 @@ function Sky({ children }) {
 
 // system: a counter, increased to start again with a new random system
 // asteroidTrail, planetTrail: the length of the trails (see Trail.jsx)
-function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroidGravityFactor, planetGravityFactor, starIntensity, launchMode, skinId, speed, system, asteroidTrail, planetTrail}) {
+// trajectoryPreview: whether the path of the asteroid is shown while aiming
+function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroidGravityFactor, planetGravityFactor, starIntensity, launchMode, skinId, speed, system, asteroidTrail, planetTrail, trajectoryPreview}) {
 
   const skin = findSkin(skinId);
   const canvasRef = useRef();
@@ -550,18 +551,20 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
           <SoundBridge planets={planets} asteroids={asteroids} />
 
           {/* Where the asteroid will go, shown while aiming */}
-          <TrajectoryPreview
-            aim={aim}
-            getLaunchVelocity={getLaunchVelocity}
-            planets={planets}
-            starPosition={starPosition}
-            starMass={starMass}
-            starSize={starSize}
-            asteroidGravityFactor={asteroidGravityFactor}
-            planetGravityFactor={planetGravityFactor}
-            planetSizeFactor={planetSizeFactor}
-            color={skin.arrow ?? 'red'}
-          />
+          {trajectoryPreview && (
+            <TrajectoryPreview
+              aim={aim}
+              getLaunchVelocity={getLaunchVelocity}
+              planets={planets}
+              starPosition={starPosition}
+              starMass={starMass}
+              starSize={starSize}
+              asteroidGravityFactor={asteroidGravityFactor}
+              planetGravityFactor={planetGravityFactor}
+              planetSizeFactor={planetSizeFactor}
+              color={skin.arrow ?? 'red'}
+            />
+          )}
 
         </scene>
         </SkinProvider>

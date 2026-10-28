@@ -6,7 +6,7 @@ import { defaultVolume, getVolume, isSoundOn, setSoundOn, setVolume } from './au
 import { initialSkinId, rememberSkin } from './skins/skins';
 
 // Create a separate component for simulation parameters
-function SimulationParameters({ speed, onSpeedChange, onRandomSystem, volume, onVolumeChange, asteroidTrail, onAsteroidTrailChange, planetTrail, onPlanetTrailChange, starSize, onStarSizeChange, planetSizeFactor, onPlanetSizeFactorChange, starMass, onStarMassChange, asteroidMass, onAsteroidMassChange, asteroidGravityFactor, onAsteroidGravityFactorChange, planetGravityFactor, onPlanetGravityFactorChange, starIntensity, onStarIntensityChange, launchMode, onLaunchModeChange }) {
+function SimulationParameters({ speed, onSpeedChange, onRandomSystem, volume, onVolumeChange, asteroidTrail, onAsteroidTrailChange, planetTrail, onPlanetTrailChange, starSize, onStarSizeChange, planetSizeFactor, onPlanetSizeFactorChange, starMass, onStarMassChange, asteroidMass, onAsteroidMassChange, asteroidGravityFactor, onAsteroidGravityFactorChange, planetGravityFactor, onPlanetGravityFactorChange, starIntensity, onStarIntensityChange, launchMode, onLaunchModeChange, trajectoryPreview, onTrajectoryPreviewChange }) {
   // With a mouse, the panel opens when hovered and closes when the mouse leaves it.
   // On touch screens, where nothing is hovered, a tap on its title opens or closes it.
   const [open, setOpen] = useState(false);
@@ -196,6 +196,26 @@ function SimulationParameters({ speed, onSpeedChange, onRandomSystem, volume, on
       </div>
 
       <div className="parameter">
+        <label htmlFor="trajectory-preview">Trajectory Preview (T):</label>{' '}
+        <span className={trajectoryPreview ? 'switch-option' : 'switch-option active'} onClick={() => onTrajectoryPreviewChange(false)}>
+          Off
+        </span>
+        <label className="switch">
+          <input
+            type="checkbox"
+            id="trajectory-preview"
+            role="switch"
+            checked={trajectoryPreview}
+            onChange={(e) => onTrajectoryPreviewChange(e.target.checked)}
+          />
+          <span className="switch-track" />
+        </label>
+        <span className={trajectoryPreview ? 'switch-option active' : 'switch-option'} onClick={() => onTrajectoryPreviewChange(true)}>
+          On
+        </span>
+      </div>
+
+      <div className="parameter">
         <br />
         <br />
         <label>Warning: this will break orbits!</label>
@@ -233,6 +253,7 @@ function App() {
   const [system, setSystem] = useState(0); // increased to start again with a new random system
   const [asteroidTrail, setAsteroidTrail] = useState(3); // length of the asteroids' trails: 0 for none, 3 for 4 seconds (see Trail.jsx)
   const [planetTrail, setPlanetTrail] = useState(0); // length of the planets' trails, none by default
+  const [trajectoryPreview, setTrajectoryPreview] = useState(true); // dots showing where the asteroid will go, while aiming
   const newRandomSystem = useCallback(() => setSystem((previous) => previous + 1), []);
   // Sound: always off when the game starts. The volume sliders show 0 while it is off; switching it on brings back
   // the level (1 to 10) it had before being cut, remembered for the next visits (see audio/sound.js)
@@ -264,7 +285,7 @@ function App() {
   }, []);
 
   // The space bar pauses the game, and resumes it at the speed it had before. The R key starts a new random system,
-  // the M key switches the sound on and off.
+  // the M key switches the sound on and off, the T key the trajectory preview.
   const lastSpeed = useRef(speed);
   useEffect(() => {
     if (speed > 0) lastSpeed.current = speed;
@@ -274,6 +295,7 @@ function App() {
       if (e.ctrlKey || e.metaKey || e.altKey || e.target.closest?.('input[type="text"], select, textarea')) return;
       if ((e.key === 'r' || e.key === 'R') && !e.repeat) newRandomSystem();
       if ((e.key === 'm' || e.key === 'M') && !e.repeat) toggleSound();
+      if ((e.key === 't' || e.key === 'T') && !e.repeat) setTrajectoryPreview((previous) => !previous);
       if (e.code !== 'Space') return;
       // Also keeps the space bar from pressing the focused button (a skin, the settings' title)
       e.preventDefault();
@@ -299,6 +321,7 @@ function App() {
         system={system}
         asteroidTrail={asteroidTrail}
         planetTrail={planetTrail}
+        trajectoryPreview={trajectoryPreview}
       />
       <SimulationParameters
         speed={speed}
@@ -326,6 +349,8 @@ function App() {
         onStarIntensityChange={setStarIntensity}
         launchMode={launchMode}
         onLaunchModeChange={setLaunchMode}
+        trajectoryPreview={trajectoryPreview}
+        onTrajectoryPreviewChange={setTrajectoryPreview}
       />
       <div className="top-bar">
         <SoundToggle on={soundOn} onToggle={toggleSound} volume={soundOn ? volume : 0} onVolumeChange={changeVolume} />
