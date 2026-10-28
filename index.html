@@ -17,10 +17,26 @@
 	<meta property="og:image:alt" content="The Solar System of Gravity Star, with an asteroid about to be thrown">
 	<meta name="twitter:card" content="summary_large_image">
 	<link rel="icon" type="image/svg+xml" href="/GravityStar/favicon.svg">
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" />
+	<!-- The textures and the asteroid's model start downloading at once, alongside the code that will use them
+	     (crossorigin as three.js loads them, so that the browser reuses these downloads) -->
+	<link rel="preload" as="image" href="/GravityStar/img/2k_sun.jpg" crossorigin="anonymous">
+	<link rel="preload" as="image" href="/GravityStar/img/2k_mercury.jpg" crossorigin="anonymous">
+	<link rel="preload" as="image" href="/GravityStar/img/2k_venus_atmosphere.jpg" crossorigin="anonymous">
+	<link rel="preload" as="image" href="/GravityStar/img/2k_earth_daymap.jpg" crossorigin="anonymous">
+	<link rel="preload" as="image" href="/GravityStar/img/2k_mars.jpg" crossorigin="anonymous">
+	<link rel="preload" as="image" href="/GravityStar/img/2k_jupiter.jpg" crossorigin="anonymous">
+	<link rel="preload" as="image" href="/GravityStar/img/2k_saturn.jpg" crossorigin="anonymous">
+	<link rel="preload" as="image" href="/GravityStar/img/2k_uranus.jpg" crossorigin="anonymous">
+	<link rel="preload" as="image" href="/GravityStar/img/2k_neptune.jpg" crossorigin="anonymous">
+	<link rel="preload" as="fetch" href="/GravityStar/models/meteorite/meteorite.glb" crossorigin="anonymous">
 	<title>Gravity Star</title>
-  <script type="module" crossorigin src="/GravityStar/assets/index-D5O55AbX.js"></script>
-  <link rel="stylesheet" crossorigin href="/GravityStar/assets/index-Ch9jlqjq.css">
+  <script type="module" crossorigin src="/GravityStar/assets/index-BkxKxvdo.js"></script>
+  <link rel="modulepreload" crossorigin href="/GravityStar/assets/rolldown-runtime-XKyaHtl9.js">
+  <link rel="modulepreload" crossorigin href="/GravityStar/assets/vendor-CfFc5B5O.js">
+  <link rel="stylesheet" crossorigin href="/GravityStar/assets/index-BPS4vrzs.css">
 </head>
 
 <body>
