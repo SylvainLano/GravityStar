@@ -10,9 +10,6 @@ import Arrow from './Arrow';
 import Planet from './Planet';
 import Explosion from './Explosion';
 
-// Keep loaded files in memory (the sun texture is reloaded when its luminosity changes)
-THREE.Cache.enabled = true;
-
 // Setting up the positions shared by the scene and the launching controls
 const starPosition = new THREE.Vector3(0, 0, 0);
 const cameraPosition = new THREE.Vector3(0, 5, 6);
@@ -39,12 +36,14 @@ const pointer = new THREE.Vector2();
 const dragPoint = new THREE.Vector3();
 const directionToStar = new THREE.Vector3();
 const projection = new THREE.Vector3();
+
 function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroidGravityFactor, planetGravityFactor, starIntensity, launchMode}) {
-  
+
   const sceneRef = useRef();
 
   const [explosions, setExplosions] = useState([]);
-  const [nextKey, setNextKey] = useState(0);
+  // Identifiers of asteroids and explosions: a counter outside React state never hands out the same one twice
+  const nextKey = useRef(0);
 
   /* Creating a set of Planets 
       velocity is 10 divided by a hundred times the square root of days around the sun
@@ -153,7 +152,7 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
     // Set spotlight parameters
     light.distance = 4; // Adjust the light's distance
     light.angle = Math.PI / 3; // Set the cone angle (adjust as needed)
-    light.penumbra = 2; // Set the penumbra (adjust as needed)
+    light.penumbra = 0; // No penumbra: the edge of the light is sharp
     light.target.position.copy(starPosition);
     return light;
   }, []);
@@ -237,12 +236,13 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
       // The pointer is already gone: it will be released right away
     }
 
-    Object.assign(aim.current, { active: true, pointerId: e.pointerId, asteroidIndex: nextKey, mode: launchMode });
+    const index = nextKey.current++;
+    Object.assign(aim.current, { active: true, pointerId: e.pointerId, asteroidIndex: index, mode: launchMode });
     aim.current.velocity.set(0, 0, 0);
 
     const initialVelocity = new THREE.Vector3(0, 0, 0);
     const newAsteroid = {
-      index: nextKey,
+      index: index,
       position: origin.clone(),
       velocity: initialVelocity,
       angularVelocity: initialVelocity,
@@ -250,7 +250,6 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
       moving: false
     };
 
-    setNextKey((prevNextKey) => prevNextKey + 1);
     setAsteroids((prevAsteroids) => [...prevAsteroids, newAsteroid]);
   };
 
@@ -304,39 +303,27 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
   };
 
   const handleAsteroidToAsteroidCollision = useCallback((collidedAsteroid1, collidedAsteroid2, position) => {
-    setExplosions((prevExplosions) => {
-      const newExplosion = {
-        index: nextKey,
-        position: position,
-        timestamp: Date.now()
-      };
-  
-      // Increment nextKey atomically
-      setNextKey((prevNextKey) => prevNextKey + 1);
-  
-      // Add the new explosion to the array
-      return [...prevExplosions, newExplosion];
-    });
-  
+    // Add a new explosion to the array
+    const newExplosion = {
+      index: nextKey.current++,
+      position: position,
+      timestamp: Date.now()
+    };
+    setExplosions((prevExplosions) => [...prevExplosions, newExplosion]);
+
     // Update the state to remove the collided asteroid
     setAsteroids((prevAsteroids) => prevAsteroids.filter((asteroid) => asteroid.index !== collidedAsteroid1 && asteroid.index !== collidedAsteroid2));
-  }, [sceneRef, nextKey]);
+  }, []);
 
   const handleAsteroidToPlanetCollision = useCallback((collidedAsteroid, collidedPlanet, position, momentumToAdd, angularMomentumToAdd) => {
 
-    setExplosions((prevExplosions) => {
-      const newExplosion = {
-        index: nextKey,
-        position: position,
-        timestamp: Date.now()
-      };
-  
-      // Increment nextKey atomically
-      setNextKey((prevNextKey) => prevNextKey + 1);
-  
-      // Add the new explosion to the array
-      return [...prevExplosions, newExplosion];
-    });
+    // Add a new explosion to the array
+    const newExplosion = {
+      index: nextKey.current++,
+      position: position,
+      timestamp: Date.now()
+    };
+    setExplosions((prevExplosions) => [...prevExplosions, newExplosion]);
 
     setPlanets((prevPlanets) =>
     prevPlanets.map((planet) => ({
@@ -356,7 +343,7 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
     // Update the state to remove the collided asteroid
     setAsteroids((prevAsteroids) => prevAsteroids.filter((asteroid) => asteroid.index !== collidedAsteroid));
 
-  }, [sceneRef, nextKey]);
+  }, []);
 
   const handlePlanetToPlanetCollision = useCallback((collidedPlanet1, momentumToAdd1, collidedPlanet2, momentumToAdd2) => {
 
@@ -437,9 +424,9 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
           {/* Use the particles variable to create the animation of the star */}
           {starParticles}
 
-          {planets.map((data, index) => (
+          {planets.map((data) => (
             <Planet
-              key={`planet_${index}`}
+              key={`planet_${data.index}`}
               {...data} // Spread the data into props
               starMass={starMass}
               starSize={starSize}

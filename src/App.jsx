@@ -40,7 +40,7 @@ function SimulationParameters({ starSize, onStarSizeChange, planetSizeFactor, on
       </div>
 
       <div className="parameter">
-        <label htmlFor="planets-size">Planets Size:</label>
+        <label htmlFor="planets-size">Planet Size:</label>
         <input
           type="range"
           id="planets-size"
@@ -68,7 +68,7 @@ function SimulationParameters({ starSize, onStarSizeChange, planetSizeFactor, on
       </div>
 
       <div className="parameter">
-        <label htmlFor="asteroid-sensitivity">Asteroid Sensitivity To Gravity:</label>
+        <label htmlFor="asteroid-sensitivity">Asteroid Sensitivity to Gravity:</label>
         <br />
         <input
           type="range"
@@ -83,7 +83,7 @@ function SimulationParameters({ starSize, onStarSizeChange, planetSizeFactor, on
       </div>
 
       <div className="parameter">
-        <label htmlFor="planet-gravity-factor">Planet Gravity towards Asteroids:</label>
+        <label htmlFor="planet-gravity-factor">Planet Gravity on Asteroids:</label>
         <br />
         <input
           type="range"
@@ -98,34 +98,31 @@ function SimulationParameters({ starSize, onStarSizeChange, planetSizeFactor, on
       </div>
 
       <div className="parameter">
-        <label>Launch Mode:</label>
+        <label htmlFor="launch-mode">Launch Mode:</label>
         <br />
-        <label>
-          <input
-            type="radio"
-            name="launch-mode"
-            value="screen"
-            checked={launchMode === 'screen'}
-            onChange={(e) => onLaunchModeChange(e.target.value)}
-          />
+        {/* Switch between the two modes: the active one is highlighted, and both names can be clicked too */}
+        <span className={launchMode === 'screen' ? 'switch-option active' : 'switch-option'} onClick={() => onLaunchModeChange('screen')}>
           Free Throw
-        </label>
-        <label>
+        </span>
+        <label className="switch">
           <input
-            type="radio"
-            name="launch-mode"
-            value="orbital"
+            type="checkbox"
+            id="launch-mode"
+            role="switch"
             checked={launchMode === 'orbital'}
-            onChange={(e) => onLaunchModeChange(e.target.value)}
+            onChange={(e) => onLaunchModeChange(e.target.checked ? 'orbital' : 'screen')}
           />
-          Orbital Plane
+          <span className="switch-track" />
         </label>
+        <span className={launchMode === 'orbital' ? 'switch-option active' : 'switch-option'} onClick={() => onLaunchModeChange('orbital')}>
+          Orbital Plane
+        </span>
       </div>
 
       <div className="parameter">
         <br />
         <br />
-        <label>WARNING : This will break orbits!</label>
+        <label>Warning: this will break orbits!</label>
       </div>
 
       <div className="parameter">
@@ -147,7 +144,7 @@ function SimulationParameters({ starSize, onStarSizeChange, planetSizeFactor, on
 
 function App() {
   // Define state variables for simulation parameters
-  const [starSize, setStarSize] = useState(0.4); // Default is 0.4 for the star to be reasonnably sized
+  const [starSize, setStarSize] = useState(0.4); // Default is 0.4 for the star to be reasonably sized
   const [planetSizeFactor, setPlanetSizeFactor] = useState(2); // Default is 2 to better see the planets
   const [starMass, setStarMass] = useState(333000); // 333000 times the mass of the earth
   const [asteroidMass, setAsteroidMass] = useState(1); // times the mass of the earth
@@ -186,6 +183,18 @@ function App() {
         launchMode={launchMode}
         onLaunchModeChange={setLaunchMode}
       />
+      {/* Credits required by the licenses of the 3D model and of the textures */}
+      <div className="credits">
+        <a href="https://sketchfab.com/3d-models/meteorite-0a503e5bec784cbc9082e2f6b2d9f701" target="_blank" rel="noopener noreferrer">"Meteorite"</a>
+        {' by '}
+        <a href="https://sketchfab.com/hailphilly" target="_blank" rel="noopener noreferrer">Hailphilly</a>
+        {' (simplified), '}
+        <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>
+        {' · Planet textures by '}
+        <a href="https://www.solarsystemscope.com/textures/" target="_blank" rel="noopener noreferrer">Solar System Scope</a>
+        {', '}
+        <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>
+      </div>
     </div>
   );
 }

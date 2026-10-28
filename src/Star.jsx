@@ -1,55 +1,31 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { useFrame } from '@react-three/fiber';
+import React, { useRef, useMemo, useLayoutEffect } from 'react';
+import { useFrame, useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
 
 import { frameScale } from './physics';
 
 const Star = ({ size, starIntensity }) => {
   const starRef = useRef();
-  const [starMaterial, setStarMaterial] = useState(
-    new THREE.MeshBasicMaterial({ color: 0xffff00 }) // Yellow color
-  );
+  const texture = useLoader(THREE.TextureLoader, './img/2k_sun.jpg');
 
-  useEffect(() => {
-    const textureLoader = new THREE.TextureLoader();
-    textureLoader.load(
-      './img/2k_sun.jpg',
-      (texture) => {
-        texture = adjustBrightness(texture, starIntensity/5); // Divide by 5 for the texture not to burn too fast
-        // Create a new material with the loaded texture
-        const material = new THREE.MeshBasicMaterial({ map: texture });
-        setStarMaterial(material);
-      },
-      undefined,
-      (error) => {
-        console.error('Error loading texture:', error);
-      }
-    );
-  }, [starIntensity]);
+  // The material is created here rather than in JSX, so that the texture keeps the colors it always had
+  // (R3F converts the textures given to materials as props to sRGB, which would change the sun's colors)
+  const starMaterial = useMemo(() => {
+    const material = new THREE.MeshBasicMaterial({ map: texture });
+    // Colors brightened beyond white are cut, as when the brightness was applied to the texture's pixels
+    material.onBeforeCompile = (shader) => {
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <map_fragment>',
+        '#include <map_fragment>\n\tdiffuseColor.rgb = min( diffuseColor.rgb, vec3( 1.0 ) );'
+      );
+    };
+    return material;
+  }, [texture]);
 
-  // Function to adjust texture brightness
-  const adjustBrightness = (texture, brightness) => {
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-    canvas.width = texture.image.width;
-    canvas.height = texture.image.height;
-    context.drawImage(texture.image, 0, 0);
-
-    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-    const data = imageData.data;
-
-    for (let i = 0; i < data.length; i += 4) {
-      data[i] *= brightness; // Adjust the red channel
-      data[i + 1] *= brightness; // Adjust the green channel
-      data[i + 2] *= brightness; // Adjust the blue channel
-    }
-
-    context.putImageData(imageData, 0, 0);
-    texture.image = canvas;
-    texture.needsUpdate = true;
-
-    return texture;
-  };
+  // Adjust the brightness with the material's color, instead of reloading and recalculating the texture
+  useLayoutEffect(() => {
+    starMaterial.color.setScalar(starIntensity/5); // Divide by 5 for the texture not to burn too fast
+  }, [starMaterial, starIntensity]);
 
   useFrame((state, delta) => {
     // Rotate the star (by 0.001 per 60 fps step)
