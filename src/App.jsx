@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import StarScene from './StarScene';
 
 // Create a separate component for simulation parameters
-function SimulationParameters({ starSize, onStarSizeChange, planetSizeFactor, onPlanetSizeFactorChange, starMass, onStarMassChange, asteroidMass, onAsteroidMassChange, asteroidGravityFactor, onAsteroidGravityFactorChange, planetGravityFactor, onPlanetGravityFactorChange, starIntensity, onStarIntensityChange }) {
+function SimulationParameters({ starSize, onStarSizeChange, planetSizeFactor, onPlanetSizeFactorChange, starMass, onStarMassChange, asteroidMass, onAsteroidMassChange, asteroidGravityFactor, onAsteroidGravityFactorChange, planetGravityFactor, onPlanetGravityFactorChange, starIntensity, onStarIntensityChange, launchMode, onLaunchModeChange }) {
   return (
     <div className="simulation-parameters">
       <div className="title">
@@ -98,6 +98,31 @@ function SimulationParameters({ starSize, onStarSizeChange, planetSizeFactor, on
       </div>
 
       <div className="parameter">
+        <label>Launch Mode:</label>
+        <br />
+        <label>
+          <input
+            type="radio"
+            name="launch-mode"
+            value="screen"
+            checked={launchMode === 'screen'}
+            onChange={(e) => onLaunchModeChange(e.target.value)}
+          />
+          Free Throw
+        </label>
+        <label>
+          <input
+            type="radio"
+            name="launch-mode"
+            value="orbital"
+            checked={launchMode === 'orbital'}
+            onChange={(e) => onLaunchModeChange(e.target.value)}
+          />
+          Orbital Plane
+        </label>
+      </div>
+
+      <div className="parameter">
         <br />
         <br />
         <label>WARNING : This will break orbits!</label>
@@ -129,6 +154,7 @@ function App() {
   const [asteroidGravityFactor, setAsteroidGravityFactor] = useState(10); // increase the gravity for asteroids
   const [planetGravityFactor, setPlanetGravityFactor] = useState(100); // increase the gravity of the planets toward asteroids
   const [starIntensity, setStarIntensity] = useState(5); // increase the luminosity of the star
+  const [launchMode, setLaunchMode] = useState('screen'); // asteroids are created facing the camera ('screen') or in the planets' plane ('orbital')
 
   return (
     <div className="App">
@@ -140,6 +166,7 @@ function App() {
         asteroidGravityFactor={asteroidGravityFactor}
         planetGravityFactor={planetGravityFactor}
         starIntensity={starIntensity}
+        launchMode={launchMode}
       />
       <SimulationParameters
         starSize={starSize}
@@ -156,6 +183,8 @@ function App() {
         onPlanetGravityFactorChange={setPlanetGravityFactor}
         starIntensity={starIntensity}
         onStarIntensityChange={setStarIntensity}
+        launchMode={launchMode}
+        onLaunchModeChange={setLaunchMode}
       />
     </div>
   );

@@ -1,36 +1,42 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
-const Arrow = ({ position, direction, length }) => {
+// Reused on every frame, to avoid creating new objects
+const coneAxis = new THREE.Vector3(0, 1, 0);
+const direction = new THREE.Vector3();
+
+// The arrow reads the aim directly on every frame, so moving the pointer never re-renders React components
+// referenceDistance is the distance from the camera at which the arrow has its original thickness
+const Arrow = ({ aim, referenceDistance }) => {
   const arrowRef = useRef();
 
-  // Calculate the rotation matrix to point the arrow in the specified direction
-  const rotationMatrix = useMemo(() => {
-    const matrix = new THREE.Matrix4();
-    matrix.lookAt(position, direction, direction); // Use (0, 1, 0) as the up vector
-    return matrix;
-  }, [direction]);
+  useFrame(({ camera }) => {
+    const arrow = arrowRef.current;
+    const { active, origin, velocity } = aim.current;
+    const length = velocity.length() * 100;
+    arrow.visible = active && length > 0;
+    if (!arrow.visible) return;
 
-  // Calculate the position offset to move the arrow ahead of its origin and not overlap the asteroid
-  const positionOffset = useMemo(() => {
-    const offset = new THREE.Vector3().copy(direction).normalize().multiplyScalar(length * 5 / 8);
-    return offset;
-  }, [direction, length]);
+    // Point the arrow in the launch direction
+    direction.copy(velocity).normalize();
+    arrow.quaternion.setFromUnitVectors(coneAxis, direction);
 
-  useFrame(() => {
-    // Update the arrow's position and apply the position offset
-    arrowRef.current.position.copy(position).add(positionOffset);
-    // Apply the rotation matrix to point the arrow in the specified direction
-    arrowRef.current.quaternion.setFromRotationMatrix(rotationMatrix);
+    // Stretch it to its length, keeping the same thickness on screen wherever the asteroid is
+    const thickness = camera.position.distanceTo(origin) / referenceDistance;
+    arrow.scale.set(thickness, length, thickness);
+
+    // Move the arrow ahead of its origin to not overlap the asteroid
+    arrow.position.copy(origin).addScaledVector(direction, length * 5 / 8);
   });
 
   return (
-    <mesh ref={arrowRef}>
-      <coneGeometry args={[0.01, length, 8]} />
-      <meshBasicMaterial color="red" />
+    // Drawn over the rest of the scene, as when it had its own canvas
+    <mesh ref={arrowRef} visible={false} renderOrder={1}>
+      <coneGeometry args={[0.01, 1, 8]} />
+      <meshBasicMaterial color="red" depthTest={false} />
     </mesh>
   );
 };
 
-export default Arrow;
+export default React.memo(Arrow);

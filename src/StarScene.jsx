@@ -30,108 +30,33 @@ export function calculateGravitationalForce(objetMass, position, objectPosition,
 // Keep loaded files in memory (the sun texture is reloaded when its luminosity changes)
 THREE.Cache.enabled = true;
 
-// Setting up const and function common to both the MouseEventsHandler and the main StarScene
+// Setting up the positions shared by the scene and the launching controls
 const starPosition = new THREE.Vector3(0, 0, 0);
 const cameraPosition = new THREE.Vector3(0, 5, 6);
-// Calculate the position to spawn asteroids between the camera and the star
+// Calculate the reference position to spawn asteroids between the camera and the star
 const asteroidStartingPosition = new THREE.Vector3().copy(cameraPosition).lerp(starPosition, 0.25);
 asteroidStartingPosition.y -= 0.5;
-// Scaling the force with which launching the asteroids
-const lateralVelocityScale = 0.02;
+// Asteroids are created under the pointer, on one of these planes depending on the launch mode:
+// 'screen' faces the camera at the distance of the reference position, 'orbital' is the plane where the planets orbit
+const screenLaunchPlane = new THREE.Plane().setFromNormalAndCoplanarPoint(
+  new THREE.Vector3().subVectors(starPosition, cameraPosition).normalize(),
+  asteroidStartingPosition
+);
+const orbitalLaunchPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+// Clicks farther than this from the star on the orbital plane are ignored (Neptune orbits at about 17)
+const maxOrbitalLaunchDistance = 25;
+// Scaling the force with which launching the asteroids (velocity per unit dragged on the launch plane)
+const dragVelocityScale = 0.009;
 // Scaling the momentum toward the star for the launch
 const momentumScale = 0.0005;
-// Method to calculate the deviation from the origin point being the position of the asteroid before launch
-function calculateLateralVelocity(mousePosition, momentum) {
-  // Calculate the lateral position by subtracting the asteroidStartingPosition from the mousePosition
-  const lateralPosition = mousePosition.clone().sub(asteroidStartingPosition);
 
-  // Calculate the direction from asteroidStartingPosition to starPosition
-  const directionToStar = starPosition.clone().sub(asteroidStartingPosition);
-
-  // Calculate the projection of lateralVelocity onto directionToStar
-  const projection = lateralPosition.clone().projectOnVector(directionToStar);
-
-  // Subtract the projection from lateralVelocity to get purely lateral velocity
-  const lateralVelocityWithoutStarComponent = lateralPosition.clone().sub(projection);
-
-  // Calculate the lateral velocity based on lateralPosition
-  const lateralVelocity = lateralVelocityWithoutStarComponent.multiplyScalar(lateralVelocityScale);
-  
-  if ( momentum ) {
-    // Add a small momentum towards the star
-    const momentumTowardsStar = directionToStar.clone().multiplyScalar(momentumScale);
-    lateralVelocity.add(momentumTowardsStar);
-  }
-
-  return lateralVelocity;
-}
-// Method to handle the display of the launching arrow only
-// This is to avoid React from comparing the whole scene on every mouse movement
-// If this was included within StarScene (like I did in the beginning), it would cause great performances issues
-function MouseEventsHandler({ children }) {
-  const [mouseIsPressed, setMouseIsPressed] = useState(false);
-  const [arrowDirection, setArrowDirection] = useState(starPosition);
-  const [arrowLength, setArrowLength] = useState(0);
-
-  const handleMouseMove = (e) => {
-    if (mouseIsPressed) {
-      const mousePosition = new THREE.Vector3(
-        (e.clientX / window.innerWidth) * 2 - 1,
-        -(e.clientY / window.innerHeight) * 2 + 1,
-        0
-      );
-
-      const lateralVelocity = calculateLateralVelocity(mousePosition, false);
-
-      // Calculate arrow direction based on asteroid's velocity
-      setArrowDirection(lateralVelocity.clone());
-      setArrowLength(lateralVelocity.length() * 100);
-    }
-  };    
-
-  const handleMouseDown = () => {
-    setMouseIsPressed(true);
-  };
-
-  const handleMouseUp = () => {
-    setMouseIsPressed(false);
-  };
-
-  return (
-    <div
-      onMouseMove={handleMouseMove}
-      onMouseDown={handleMouseDown}
-      onMouseUp={handleMouseUp}
-      style={{ width: '100vw', height: '100vh', position: 'relative' }}
-    >
-      
-
-      {/* Main Canvas */}
-      {children}
-      
-      {/* Overlay Canvas */}
-      <Canvas
-        camera={{ position: cameraPosition }}
-        gl={{ antialias: true }}
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          pointerEvents: 'none', // Prevent interactions with the overlay canvas
-        }}
-      >
-        {/* Render the arrow when mouse is pressed */}
-        {mouseIsPressed && <Arrow
-            position={asteroidStartingPosition}
-            direction={arrowDirection}
-            length={arrowLength}
-          />}
-      </Canvas>
-    </div>
-  );
-}
-
-function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroidGravityFactor, planetGravityFactor, starIntensity}) {
+// Reused by the pointer handlers, to avoid creating new objects on every move
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+const dragPoint = new THREE.Vector3();
+const directionToStar = new THREE.Vector3();
+const projection = new THREE.Vector3();
+function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroidGravityFactor, planetGravityFactor, starIntensity, launchMode}) {
   
   const sceneRef = useRef();
 
@@ -293,14 +218,49 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
 
   // Managing the asteroids to be launched
   const [asteroids, setAsteroids] = useState([]);
-  const [activeAsteroidId, setActiveAsteroidId] = useState(null);
 
-  const handleMouseDown = () => { 
-    // Create a new asteroid at the calculated position
+  // The aim is kept out of React state, so that moving the pointer never re-renders the scene
+  const three = useRef(null); // R3F state (camera...), set once the canvas is created
+  const aim = useRef({
+    active: false,
+    pointerId: null,
+    asteroidIndex: null,
+    mode: 'screen',
+    origin: new THREE.Vector3(),
+    velocity: new THREE.Vector3()
+  });
+
+  // Find where the pointer points on a plane (null if it points away from it)
+  const pointerOnPlane = (e, plane, target) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    pointer.set(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
+    raycaster.setFromCamera(pointer, three.current.camera);
+    return raycaster.ray.intersectPlane(plane, target);
+  };
+
+  const handlePointerDown = (e) => {
+    // One asteroid at a time, launched with the main mouse button, a finger or a pen
+    if (aim.current.active || !three.current || (e.pointerType === 'mouse' && e.button !== 0)) return;
+
+    // Create the asteroid under the pointer, on the plane of the current launch mode
+    const plane = launchMode === 'orbital' ? orbitalLaunchPlane : screenLaunchPlane;
+    const origin = pointerOnPlane(e, plane, aim.current.origin);
+    if (!origin || (launchMode === 'orbital' && origin.length() > maxOrbitalLaunchDistance)) return;
+
+    // Keep receiving the pointer events even if the pointer leaves the scene before being released
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // The pointer is already gone: it will be released right away
+    }
+
+    Object.assign(aim.current, { active: true, pointerId: e.pointerId, asteroidIndex: nextKey, mode: launchMode });
+    aim.current.velocity.set(0, 0, 0);
+
     const initialVelocity = new THREE.Vector3(0, 0, 0);
     const newAsteroid = {
       index: nextKey,
-      position: asteroidStartingPosition.clone(),
+      position: origin.clone(),
       velocity: initialVelocity,
       angularVelocity: initialVelocity,
       active: true,
@@ -308,45 +268,46 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
     };
 
     setNextKey((prevNextKey) => prevNextKey + 1);
-    setActiveAsteroidId(newAsteroid.index);
-
-    // Schedule the state update using requestAnimationFrame
-    requestAnimationFrame(() => {
-      setAsteroids((prevAsteroids) => [...prevAsteroids, newAsteroid]);
-    });
+    setAsteroids((prevAsteroids) => [...prevAsteroids, newAsteroid]);
   };
-  
-  const handleMouseUp = (e) => {
-    if ( activeAsteroidId !== null ) {
-      const asteroid = asteroids.find((asteroid) => asteroid.index === activeAsteroidId);
-  
-      if (!asteroid) {
-        return; // No active asteroid found
-      }
 
-      const mouse3DPosition = new THREE.Vector3(
-        (e.clientX / window.innerWidth) * 2 - 1,
-        -(e.clientY / window.innerHeight) * 2 + 1,
-        0
-      );
+  // Aim from where the asteroid was created towards the pointer
+  const updateAim = (e) => {
+    const plane = aim.current.mode === 'orbital' ? orbitalLaunchPlane : screenLaunchPlane;
+    if (!pointerOnPlane(e, plane, dragPoint)) return;
 
-      const lateralVelocity = calculateLateralVelocity(mouse3DPosition, true);
-  
-      setAsteroids((prevAsteroids) =>
-        prevAsteroids.map((asteroid) => ({
-          ...asteroid,
-          moving: true,
-          ...(asteroid.index === activeAsteroidId
-            ? {
-                velocity: lateralVelocity,
-                angularVelocity: lateralVelocity,
-              }
-            : {}),
-        }))
-      );
+    const velocity = aim.current.velocity.subVectors(dragPoint, aim.current.origin).multiplyScalar(dragVelocityScale);
 
-      setActiveAsteroidId(null); // Unset the active asteroid's identifier
+    if (aim.current.mode === 'screen') {
+      // Keep the throw purely lateral, the momentum towards the star is added at launch
+      directionToStar.subVectors(starPosition, aim.current.origin);
+      velocity.sub(projection.copy(velocity).projectOnVector(directionToStar));
     }
+  };
+
+  const handlePointerMove = (e) => {
+    if (aim.current.active && e.pointerId === aim.current.pointerId) {
+      updateAim(e);
+    }
+  };
+
+  const handlePointerUp = (e) => {
+    if (!aim.current.active || e.pointerId !== aim.current.pointerId) return;
+    updateAim(e);
+    aim.current.active = false;
+
+    // Launch with the aimed velocity (plus a small momentum towards the star when thrown in front of the camera)
+    const launchVelocity = aim.current.velocity.clone();
+    if (aim.current.mode === 'screen') {
+      launchVelocity.add(directionToStar.subVectors(starPosition, aim.current.origin).multiplyScalar(momentumScale));
+    }
+
+    const launchedIndex = aim.current.asteroidIndex;
+    setAsteroids((prevAsteroids) =>
+      prevAsteroids.map((asteroid) => (asteroid.index === launchedIndex
+        ? { ...asteroid, moving: true, velocity: launchVelocity, angularVelocity: launchVelocity }
+        : asteroid))
+    );
   };
 
   const handleAsteroidToStarCollision = (collidedAsteroidIndex) => {
@@ -459,13 +420,17 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
   }, [starMass]);
 
   return (
-    <MouseEventsHandler>
       <Canvas
         shadows
         camera={{ position: cameraPosition }}
         gl={{antialias: true}}
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
+        // Full screen, without scrolling or zooming the page when aiming with a finger
+        style={{ width: '100vw', height: '100vh', touchAction: 'none' }}
+        onCreated={(state) => { three.current = state; }}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
       >
         {/* Set up the scene and camera */}
         <scene ref={sceneRef}>
@@ -544,9 +509,11 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
 
           <Star size={starSize} starIntensity={starIntensity} />
 
+          {/* Launching arrow, shown while aiming */}
+          <Arrow aim={aim} referenceDistance={cameraPosition.distanceTo(asteroidStartingPosition)} />
+
         </scene>
-      </Canvas>      
-    </MouseEventsHandler>
+      </Canvas>
   );
 }
 
