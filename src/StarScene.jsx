@@ -10,6 +10,8 @@ import Arrow from './Arrow';
 import TrajectoryPreview from './TrajectoryPreview';
 import Planet from './Planet';
 import PlanetInfo from './PlanetInfo';
+import AchievementWatcher from './AchievementWatcher';
+import { collect, unlock } from './achievements';
 import Explosion from './Explosion';
 import { SimulationClock, SimulationContext, createSimulation } from './SimulationClock';
 import { asteroidCollisionDistance, starPullFor } from './physics';
@@ -271,6 +273,9 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
   // Managing the asteroids to be launched
   const [asteroids, setAsteroids] = useState([]);
 
+  // Game time of the last throw, for the achievements (see AchievementWatcher)
+  const lastLaunch = useRef(0);
+
   // The aim is kept out of React state, so that moving the pointer never re-renders the scene
   const three = useRef(null); // R3F state (camera...), set once the canvas is created
   const aim = useRef({
@@ -412,6 +417,9 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
 
     const launchVelocity = getLaunchVelocity(aim.current, new THREE.Vector3());
     playSound('launch', { strength: launchVelocity.length() / 0.03, pan: panOf(aim.current.origin) });
+    unlock('yeet');
+    if (asteroidGravityFactor < 0) unlock('sorry-newton');
+    lastLaunch.current = simulation.current.time;
 
     const launchedIndex = aim.current.asteroidIndex;
     setAsteroids((prevAsteroids) =>
@@ -423,6 +431,7 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
 
   const handleAsteroidToStarCollision = (collidedAsteroidIndex) => {
     playSound('star', { strength: 0.5 });
+    unlock('sun-snack');
     // Update the state to remove the collided asteroid
     setAsteroids((prevAsteroids) => prevAsteroids.filter((asteroid) => asteroid.index !== collidedAsteroidIndex));
   };  
@@ -434,6 +443,7 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
 
   const handleAsteroidToAsteroidCollision = useCallback((collidedAsteroid1, collidedAsteroid2, position) => {
     playSound('crash', { pan: panOf(position) });
+    unlock('fender-bender');
     // Add a new explosion to the array
     const newExplosion = {
       index: nextKey.current++,
@@ -449,7 +459,11 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
   const handleAsteroidToPlanetCollision = useCallback((collidedAsteroid, collidedPlanet, position, momentumToAdd, angularMomentumToAdd) => {
 
     // Louder when the planet is shaken harder, in the planet's note for the music of the spheres
-    playSound('impact', { strength: momentumToAdd.length() * 150, pan: panOf(position), note: planetNotes[planetData[collidedPlanet - 1]?.name] });
+    const planetName = planetData[collidedPlanet - 1]?.name;
+    playSound('impact', { strength: momentumToAdd.length() * 150, pan: panOf(position), note: planetNotes[planetName] });
+    unlock('bullseye');
+    if (planetName === 'earth') unlock('houston');
+    if (planetName) collect('planets-hit', planetName, planetData.length, 'completionist');
 
     // Add a new explosion to the array
     const newExplosion = {
@@ -485,6 +499,7 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
     // Both planets see the collision: only one of them plays it, and counts it
     const counted = collidedPlanet1 < collidedPlanet2;
     if (counted) playSound('impact', { strength: 1, note: planetNotes[planetData[collidedPlanet1 - 1]?.name] });
+    unlock('bumper-cars');
     const time = simulation.current.time;
 
     setPlanets((prevPlanets) =>
@@ -516,12 +531,17 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
     if (!fallenPlanets.current.has(collidedPlanetIndex)) {
       fallenPlanets.current.add(collidedPlanetIndex);
       playSound('star', { strength: 1 });
+      unlock('sunburn');
     }
     // Update the state to remove the collided planet
     setPlanets((prevPlanets) => prevPlanets.filter((planet) => planet.index !== collidedPlanetIndex));
   };  
 
   const hoveredPlanetData = planets.find((planet) => planet.index === hoveredPlanet);
+
+  // Achievements: a planet's panel opened, the system seen from right above (see achievements.js)
+  useEffect(() => { if (hoveredPlanet !== null) unlock('nosy'); }, [hoveredPlanet]);
+  useEffect(() => { if (view.polar < 0.15) unlock('birds-eye'); }, [view]);
 
   // A new random system: every planet back on its orbit at a new place, without asteroids nor explosions (the settings stay)
   useEffect(() => {
@@ -643,6 +663,9 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
 
           {/* The music of the spheres, in the realistic skin */}
           <SoundBridge planets={planets} asteroids={asteroids} />
+
+          {/* The achievements that no single event gives */}
+          <AchievementWatcher planets={planets} starMass={starMass} lastLaunch={lastLaunch} />
 
           {/* Where the asteroid will go, shown while aiming */}
           {trajectoryPreview && (

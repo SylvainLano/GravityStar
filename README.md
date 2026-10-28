@@ -6,7 +6,7 @@ It was first created in ten days with React Three Fiber.
 ## How to play
 
 Each game starts with the planets at random places on their orbits (the farthest ones behind the star, where they can be seen).
-The "New random system" button of the settings, or the R key, starts again with a new random system, keeping the settings.
+The Randomize button of the settings, or the R key, starts again with a new random system, keeping the settings.
 
 - **Launch an asteroid**: press anywhere in the scene to create an asteroid under the pointer, drag to aim (an arrow shows the direction and strength), then release to throw it. It works with a mouse, a finger or a pen.
   While aiming, dots show the path the asteroid will follow, bent by the gravity of the star and the planets; a bigger dot marks where it would hit one of them. The prediction follows the rules of the game, but leaves out the pull of the planets on each other and the other asteroids. The Trajectory Preview setting, or the T key, hides it for those who prefer to aim by feel.
@@ -14,13 +14,14 @@ The "New random system" button of the settings, or the R key, starts again with 
   - *Free Throw* (default): asteroids are created facing the camera and get a small push towards the star.
   - *Orbital Plane*: asteroids are created in the plane where the planets orbit, and thrown exactly where you aim.
 - **Trails**: the Asteroid Trail and Planet Trail settings draw the path of the bodies behind them, in the style of the skin. 0 draws none; from 1 to 10, each step doubles their length, from 1 second to about 8 and a half minutes of the game (asteroids: 3 by default; planets: none by default).
-- **Sound**: off when the game starts; the speaker button next to the skins, or the M key, switches it on. Its volume is set with the slider that unrolls when hovering the speaker button, or with the Volume setting: they show 0 while the sound is off, sliding them up switches it on, and down to 0 cuts it. Switching it on brings back the volume it had before being cut, remembered for the next visits (7 the first time, or after sliding it down to 0). Nothing can be heard in space, so the Realistic skin turns the motion into music instead (a "music of the spheres"): each planet holds a note drawn from its orbit (Mercury the highest, Neptune the lowest), louder as it comes closer and ringing when it passes in front of the star; a moving asteroid whistles higher as it goes faster, and an impact makes the system rumble. The stylized skins, which make no claim to realism, have sound effects in their own style.
+- **Sound**: off when the game starts; the speaker button in the top right corner, or the M key, switches it on. Its volume is set with the slider that unrolls when hovering the speaker button, or with the Volume setting: they show 0 while the sound is off, sliding them up switches it on, and down to 0 cuts it. Switching it on brings back the volume it had before being cut, remembered for the next visits (7 the first time, or after sliding it down to 0). Nothing can be heard in space, so the Realistic skin turns the motion into music instead (a "music of the spheres"): each planet holds a note drawn from its orbit (Mercury the highest, Neptune the lowest), louder as it comes closer and ringing when it passes in front of the star; a moving asteroid whistles higher as it goes faster, and an impact makes the system rumble. The stylized skins, which make no claim to realism, have sound effects in their own style.
 - **Planets**: hovering a planet with the mouse shows its panel: the real values of the planet (distance to the Sun, year, speed, shape of the orbit, mass), those of the game at the start and now, the impacts it received, and how it is doing. The game puts the planets at other distances than the real ones so that they all fit on the screen: the four inner planets at twice their real distance, the outer ones closer and closer to the star. Their years keep their real proportions, though: the Earth goes round in 48 seconds at the normal speed, Neptune in 2 hours and 12 minutes. The star's gravity alone could not hold them on their orbits at these distances and speeds, so the star pulls each planet with its own strength, just what its orbit needs: hit a planet, and it follows a true ellipse.
 - **Interface**: the H key hides it (settings, skins, credits), to look at the scene or take a picture of it, and shows it again. The F key puts the game in full screen without it; F again or Esc leaves the full screen and brings it back.
 - **Camera**: drag with the right mouse button to turn the camera around the star, at the same distance; seen from above, the orbits and their trails are drawn whole. The Left Button / Touch setting swaps the two buttons, so that a finger turns the view on a touch screen. The V key brings back the starting view.
 - **Zoom**: the mouse wheel (or a pinch on a touchpad) and the + and - keys bring the camera closer to the star or farther from it.
 - **Speed**: the Speed setting slows the game down (1 is half speed), speeds it up (up to 10, five times faster) or pauses it (0). The space bar pauses and resumes the game. While it is paused, you can still create and aim asteroids: they all set off when the game resumes.
-- **Settings**: hover the "Change the settings here" panel (or tap it on a touch screen) to change the size and luminosity of the star, the size of the planets, the mass of the asteroids and the strength of gravity. Changing the star's mass breaks the orbits.
+- **Settings**: hover the "Change the settings here" panel (or tap it on a touch screen) to change the speed and the sound, the look (the size and luminosity of the star, the size of the planets, the trails), the throws (launch mode, trajectory preview, buttons, mass of the asteroids) and the strength of gravity. Changing the star's mass breaks the orbits. The Reset button brings back the settings by default (the volume is kept).
+- **Achievements**: twenty of them, and not a single hint. The trophy between the sound button and the skins opens their board, where each one is only a silhouette until it is unlocked; a notification tells when one is. They are remembered by the browser.
 - **Skins**: choose the look of the game with the round buttons in the top right corner, or with the ← and → keys. The choice is remembered, and shown in the link (e.g. `?skin=comic`) so that it can be shared.
 
 ## Skins
@@ -60,9 +61,11 @@ The **style lab** (`lab.html`) is a development tool to design and compare the s
 ### Where things are
 
 - `src/StarScene.jsx`: the scene, the planets' data and the launching of the asteroids
+- `src/SettingsPanel.jsx`: the settings panel, with the settings by default
 - `src/Planet.jsx`, `src/Asteroid.jsx`, `src/Star.jsx`, `src/physics.js`: the bodies and their gravity, computed with a fixed time step so that the game runs at the same speed whatever the frame rate
 - `src/PlanetInfo.jsx`: the panel of the planet under the mouse; its orbit is computed by `describeOrbit` in `src/physics.js`
 - `src/realPlanets.js`: the real values of the planets, whose years set the pace of the game's planets
+- `src/achievements.js`: the achievements (spoilers!) and their storage; `AchievementsBoard.jsx` shows them, `AchievementWatcher.jsx` and the events of the scene unlock them
 - `src/Trail.jsx`: the trails of the bodies, with a drawing style for each skin
 - `src/audio/sound.js`: the sounds, made by the browser (Web Audio): the music of the spheres and the sound effects of each skin
 - `src/TrajectoryPreview.jsx`: the path shown while aiming, predicted by `predictTrajectory` in `src/physics.js`
@@ -76,5 +79,5 @@ The **style lab** (`lab.html`) is a development tool to design and compare the s
 
 ## External Material
 
-Planet textures from [Solar System Scope](https://www.solarsystemscope.com/textures/), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+Planet textures from [Solar System Scope](https://www.solarsystemscope.com/textures/), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), resized and recompressed for the web (the Sun's at 2048 pixels wide, the planets' at 1024).
 Asteroid model: "[Meteorite](https://sketchfab.com/3d-models/meteorite-0a503e5bec784cbc9082e2f6b2d9f701)" by [Hailphilly](https://sketchfab.com/hailphilly), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), simplified for the web.

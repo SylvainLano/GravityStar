@@ -159,12 +159,15 @@ body {
   background: repeating-linear-gradient(to bottom, transparent 0 2px, rgba(0, 0, 0, 0.18) 2px 3px);
 }
 
+/* Settings panel (see SettingsPanel.jsx): a title only, until it is opened */
 .simulation-parameters {
-  margin:75px;
   position: absolute;
-  top: 0px;
-  left: 0px;
-  padding: 20px 30px;
+  top: 75px;
+  left: 75px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 91px);
+  overflow-y: auto;
+  padding: 18px 24px;
   background-color: var(--panel-bg);
   transition: background-color 0.3s ease;
   border: var(--ui-border-width) solid var(--ui-border);
@@ -172,8 +175,14 @@ body {
   box-shadow: var(--ui-shadow);
   font-family: 'Space Mono', monospace;
   font-size: 10pt;
-  display: flex;
-  flex-direction: column;
+}
+
+/* Closer to the corner when the screen is narrow */
+@media (max-width: 720px) {
+  .simulation-parameters {
+    top: 16px;
+    left: 16px;
+  }
 }
 
 /* The panel opens when hovered, or when opened with a click or a tap on its title */
@@ -190,16 +199,6 @@ body {
 .simulation-parameters:hover *,
 .simulation-parameters.open * {
   transition: background-color 0.3s ease, opacity 0.3s ease;
-}
-
-.simulation-parameters .parameter {
-  display: none;
-}
-
-.simulation-parameters:hover .parameter,
-.simulation-parameters.open .parameter {
-  display: inline;
-  opacity: 0.8;
 }
 
 .simulation-parameters .title {
@@ -222,33 +221,116 @@ body {
   cursor: pointer;
 }
 
-.panel-button {
-  margin: 4px 0;
-  padding: 3px 10px;
-  border: 1px solid currentColor;
+.settings-body {
+  display: none;
+  margin-top: 14px;
+}
+
+.simulation-parameters:hover .settings-body,
+.simulation-parameters.open .settings-body {
+  display: block;
+}
+
+/* Randomize and Reset, side by side: the first one filled, in the color of the text */
+.settings-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.settings-button {
+  flex: 1;
+  padding: 6px 12px;
+  border: 2px solid var(--panel-text-open);
   border-radius: var(--ui-radius);
   background: none;
-  color: inherit;
+  color: var(--panel-text-open);
   font: inherit;
+  font-weight: bold;
   cursor: pointer;
 }
 
-.simulation-parameters label, .simulation-parameters span {
-  vertical-align: top; /* Adjust the vertical alignment as needed */
+.settings-button.primary {
+  background-color: var(--panel-text-open);
+  color: var(--panel-bg-open);
 }
 
-.parameter {
-  margin-top: 5px;
-  margin-bottom: 5px;
+.settings-button:hover {
+  opacity: 0.8;
 }
 
-/* Switch between the two launch modes, with the name of the active one highlighted */
+.settings-button:focus-visible {
+  outline: 2px solid #ffd23f;
+  outline-offset: 2px;
+}
+
+/* Groups of settings, under a small title, each setting on a row of three aligned columns:
+   its name (with the key that goes with it), its slider or switch, and its value */
+.settings-group {
+  margin-top: 14px;
+}
+
+.settings-group h3 {
+  margin: 0 0 6px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid currentColor;
+  font-size: 7.5pt;
+  font-weight: bold;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+.setting {
+  display: grid;
+  grid-template-columns: 12.5em 170px 6ch;
+  column-gap: 12px;
+  align-items: center;
+  min-height: 32px;
+}
+
+.setting > label {
+  line-height: 1.2;
+}
+
+.setting-hint {
+  display: block;
+  font-size: 7pt;
+  opacity: 0.6;
+}
+
+.setting input[type='range'] {
+  width: 100%;
+  margin: 0;
+}
+
+.setting output {
+  text-align: right;
+}
+
+.setting-toggle {
+  grid-column: 2 / 4;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.settings-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+  margin-top: 14px;
+  font-size: 7.5pt;
+  opacity: 0.6;
+}
+
+/* Switches between two choices, with the name of the active one highlighted */
 .switch {
   position: relative;
   display: inline-block;
+  flex: none;
   width: 28px;
   height: 14px;
-  margin: 1px 6px 0;
+  margin: 0 8px;
 }
 
 .switch input {
@@ -296,7 +378,7 @@ body {
   opacity: 1;
 }
 
-/* Sound button and skin selector, always visible in the top right corner */
+/* Sound button, achievements and skin selector, always visible in the top right corner */
 .top-bar {
   position: absolute;
   top: 16px;
@@ -335,7 +417,8 @@ body {
   transition: width 0.2s ease, margin 0.2s ease, opacity 0.1s ease 0.15s;
 }
 
-.sound-toggle {
+.sound-toggle,
+.achievements-button {
   display: flex;
   padding: 2px;
   border: none;
@@ -345,11 +428,14 @@ body {
   cursor: pointer;
 }
 
-.sound-toggle[aria-pressed='true'] {
+.sound-toggle[aria-pressed='true'],
+.achievements-button[aria-expanded='true'],
+.achievements-button:hover {
   opacity: 1;
 }
 
-.sound-toggle:focus-visible {
+.sound-toggle:focus-visible,
+.achievements-button:focus-visible {
   outline: 2px solid #ffd23f;
   outline-offset: 2px;
 }
@@ -405,12 +491,182 @@ body {
   cursor: pointer;
 }
 
-/* The H key hides the interface, and the F key in full screen (see App.jsx): only the scene is left */
+/* The H key hides the interface, and the F key in full screen (see App.jsx): only the scene is left,
+   with the notifications of the achievements, which go away by themselves */
 .App.interface-hidden .simulation-parameters,
 .App.interface-hidden .top-bar,
 .App.interface-hidden .paused,
+.App.interface-hidden .achievements-board,
 .App.interface-hidden .credits {
   display: none;
+}
+
+/* Board of the achievements (see AchievementsBoard.jsx), under the trophy, in the colors of the open settings panel.
+   The achievements not unlocked yet are only silhouettes, in the color of the text (--silhouette). */
+.App {
+  --silhouette: brightness(0) opacity(0.3);
+}
+
+.App[data-skin='anime'],
+.App[data-skin='neko-nebula'],
+.App[data-skin='arcade'] {
+  --silhouette: brightness(0) invert(1) opacity(0.3);
+}
+
+.achievements-control {
+  position: relative;
+  display: flex;
+}
+
+/* Centered under the trophy */
+.achievements-board {
+  position: absolute;
+  z-index: 2; /* Over the panel of a planet under the mouse */
+  top: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 12px 12px;
+  border: var(--ui-border-width) solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  box-shadow: var(--ui-shadow);
+  background-color: var(--panel-bg-open);
+  color: var(--panel-text-open);
+  font-family: 'Space Mono', monospace;
+  font-size: 8pt;
+}
+
+.achievements-title {
+  margin-bottom: 8px;
+  font-weight: bold;
+}
+
+/* Only the icons, five per row */
+.achievements-list {
+  display: grid;
+  grid-template-columns: repeat(5, 36px);
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.achievement {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  border: 1px solid currentColor;
+  border-radius: var(--ui-radius);
+  cursor: default;
+}
+
+.achievement.locked {
+  border-style: dashed;
+  opacity: 0.7;
+}
+
+.achievement:focus-visible {
+  outline: 2px solid #ffd23f;
+  outline-offset: 1px;
+}
+
+.achievement-icon {
+  font-size: 15pt;
+  line-height: 1;
+}
+
+.achievement.locked .achievement-icon {
+  filter: var(--silhouette);
+}
+
+/* The details of an unlocked achievement, under it, while it is hovered or focused
+   (aligned on its right edge, the board being on the right of the screen) */
+.achievement-details {
+  position: absolute;
+  z-index: 1;
+  top: calc(100% + 6px);
+  right: 0;
+  display: none;
+  gap: 10px;
+  align-items: center;
+  width: 230px;
+  padding: 8px 10px;
+  border: var(--ui-border-width) solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  box-shadow: var(--ui-shadow);
+  background-color: var(--panel-bg-open);
+  color: var(--panel-text-open);
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+}
+
+.achievement:hover .achievement-details,
+.achievement:focus .achievement-details {
+  display: flex;
+}
+
+.achievement-details .achievement-icon {
+  font-size: 22pt;
+}
+
+.achievement-name {
+  display: block;
+  font-weight: bold;
+}
+
+.achievement-text {
+  display: block;
+  margin-top: 2px;
+  opacity: 0.8;
+}
+
+/* Notifications of the achievements just unlocked, at the bottom of the screen, in the colors of the pause indicator */
+.achievement-toasts {
+  position: absolute;
+  z-index: 3;
+  bottom: 48px; /* Above the credits */
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.achievement-toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px;
+  border: var(--ui-border-width) solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  box-shadow: var(--ui-shadow);
+  background-color: var(--panel-bg-open);
+  color: var(--panel-text-open);
+  font-family: 'Space Mono', monospace;
+  font-size: 9pt;
+  white-space: nowrap;
+  animation: achievement-toast 4s ease forwards;
+}
+
+.achievement-toast .achievement-icon {
+  font-size: 20pt;
+}
+
+.achievement-toast-label {
+  display: block;
+  font-size: 7pt;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  opacity: 0.7;
+}
+
+@keyframes achievement-toast {
+  0% { opacity: 0; transform: translateY(10px); }
+  8%, 85% { opacity: 1; transform: none; }
+  100% { opacity: 0; }
 }
 
 /* Reminder of how to bring the interface back, at the place of the pause indicator, fading out after a moment */

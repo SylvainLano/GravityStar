@@ -1,6 +1,6 @@
 import React from 'react';
 
-// The speaker button, next to the skins: switches the sound on and off (also with the M key).
+// The speaker button, in the top right corner: switches the sound on and off (also with the M key).
 // Hovering it, or moving the keyboard focus to it, unrolls a volume slider on its left (the same as in the settings).
 function SoundToggle({ on, onToggle, volume, onVolumeChange }) {
   return (

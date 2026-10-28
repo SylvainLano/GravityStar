@@ -2,287 +2,27 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import StarScene from './StarScene';
 import SkinSelector from './SkinSelector';
 import SoundToggle from './SoundToggle';
+import SettingsPanel, { defaultSettings } from './SettingsPanel';
+import { AchievementToasts, AchievementsBoard, AchievementsButton, useAchievements } from './AchievementsBoard';
+import { collect, unlock } from './achievements';
 import { defaultVolume, getVolume, isSoundOn, setSoundOn, setVolume } from './audio/sound';
-import { initialSkinId, rememberSkin } from './skins/skins';
-
-// Create a separate component for simulation parameters
-function SimulationParameters({ speed, onSpeedChange, onRandomSystem, volume, onVolumeChange, asteroidTrail, onAsteroidTrailChange, planetTrail, onPlanetTrailChange, starSize, onStarSizeChange, planetSizeFactor, onPlanetSizeFactorChange, starMass, onStarMassChange, asteroidMass, onAsteroidMassChange, asteroidGravityFactor, onAsteroidGravityFactorChange, planetGravityFactor, onPlanetGravityFactorChange, starIntensity, onStarIntensityChange, launchMode, onLaunchModeChange, trajectoryPreview, onTrajectoryPreviewChange, mainButton, onMainButtonChange }) {
-  // With a mouse, the panel opens when hovered and closes when the mouse leaves it.
-  // On touch screens, where nothing is hovered, a tap on its title opens or closes it.
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div
-      className={open ? 'simulation-parameters open' : 'simulation-parameters'}
-      onPointerLeave={(e) => { if (e.pointerType === 'mouse') setOpen(false); }}
-    >
-      <div className="title">
-        <button type="button" className="title-toggle" aria-expanded={open} onClick={() => setOpen((previous) => !previous)}>
-          Change the settings here
-        </button>
-        <br />
-      </div>
-
-      <div className="parameter">
-        <br />
-        <label htmlFor="speed">Speed (Space: pause):</label>
-        <input
-          type="range"
-          id="speed"
-          min={0}
-          max={10}
-          step={1}
-          value={speed}
-          onChange={(e) => onSpeedChange(parseFloat(e.target.value))}
-        />
-        <span>{speed === 0 ? 'Paused' : speed}</span>
-      </div>
-
-      <div className="parameter">
-        <button type="button" className="panel-button" onClick={onRandomSystem}>
-          New random system (R)
-        </button>
-      </div>
-
-      <div className="parameter">
-        H: hide the interface · F: full screen
-      </div>
-
-      <div className="parameter">
-        <label htmlFor="volume">Volume (M: sound on/off):</label>
-        <input
-          type="range"
-          id="volume"
-          min={0}
-          max={10}
-          step={1}
-          value={volume}
-          onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
-        />
-        <span>{volume}</span>
-      </div>
-
-      <div className="parameter">
-        <label htmlFor="star-size">Star Size:</label>
-        <input
-          type="range"
-          id="star-size"
-          min={0.2}
-          max={2}
-          step={0.2}
-          value={starSize}
-          onChange={(e) => onStarSizeChange(parseFloat(e.target.value))}
-        />
-        <span>{starSize}</span>
-      </div>
-
-      <div className="parameter">
-        <label htmlFor="star-luminosity">Star Luminosity:</label>
-        <input
-          type="range"
-          id="star-luminosity"
-          min={0}
-          max={10}
-          step={1}
-          value={starIntensity}
-          onChange={(e) => onStarIntensityChange(parseFloat(e.target.value))}
-        />
-        <span>{starIntensity}</span>
-      </div>
-
-      <div className="parameter">
-        <label htmlFor="planets-size">Planet Size:</label>
-        <input
-          type="range"
-          id="planets-size"
-          min={0.5}
-          max={10}
-          step={0.5}
-          value={planetSizeFactor}
-          onChange={(e) => onPlanetSizeFactorChange(parseFloat(e.target.value))}
-        />
-        <span>{planetSizeFactor}</span>
-      </div>
-
-      {/* Lengths of the trails: 0 for none, then each step doubles them (see Trail.jsx) */}
-      <div className="parameter">
-        <label htmlFor="asteroid-trail">Asteroid Trail:</label>
-        <input
-          type="range"
-          id="asteroid-trail"
-          min={0}
-          max={10}
-          step={1}
-          value={asteroidTrail}
-          onChange={(e) => onAsteroidTrailChange(parseFloat(e.target.value))}
-        />
-        <span>{asteroidTrail}</span>
-      </div>
-
-      <div className="parameter">
-        <label htmlFor="planet-trail">Planet Trail:</label>
-        <input
-          type="range"
-          id="planet-trail"
-          min={0}
-          max={10}
-          step={1}
-          value={planetTrail}
-          onChange={(e) => onPlanetTrailChange(parseFloat(e.target.value))}
-        />
-        <span>{planetTrail}</span>
-      </div>
-
-      <div className="parameter">
-        <label htmlFor="asteroid-mass">Asteroid Mass:</label>
-        <input
-          type="range"
-          id="asteroid-mass"
-          min={0.5}
-          max={10}
-          step={0.5}
-          value={asteroidMass}
-          onChange={(e) => onAsteroidMassChange(parseFloat(e.target.value))}
-        />
-        <span>{asteroidMass}</span>
-      </div>
-
-      <div className="parameter">
-        <label htmlFor="asteroid-sensitivity">Asteroid Sensitivity to Gravity:</label>
-        <br />
-        <input
-          type="range"
-          id="asteroid-sensitivity"
-          min={-100}
-          max={100}
-          step={10}
-          value={asteroidGravityFactor}
-          onChange={(e) => onAsteroidGravityFactorChange(parseFloat(e.target.value))}
-        />
-        <span>{asteroidGravityFactor}</span>
-      </div>
-
-      <div className="parameter">
-        <label htmlFor="planet-gravity-factor">Planet Gravity on Asteroids:</label>
-        <br />
-        <input
-          type="range"
-          id="planet-gravity-factor"
-          min={-2400}
-          max={2600}
-          step={500}
-          value={planetGravityFactor}
-          onChange={(e) => onPlanetGravityFactorChange(parseFloat(e.target.value))}
-        />
-        <span>{planetGravityFactor}</span>
-      </div>
-
-      <div className="parameter">
-        <label htmlFor="launch-mode">Launch Mode:</label>
-        <br />
-        {/* Switch between the two modes: the active one is highlighted, and both names can be clicked too */}
-        <span className={launchMode === 'screen' ? 'switch-option active' : 'switch-option'} onClick={() => onLaunchModeChange('screen')}>
-          Free Throw
-        </span>
-        <label className="switch">
-          <input
-            type="checkbox"
-            id="launch-mode"
-            role="switch"
-            checked={launchMode === 'orbital'}
-            onChange={(e) => onLaunchModeChange(e.target.checked ? 'orbital' : 'screen')}
-          />
-          <span className="switch-track" />
-        </label>
-        <span className={launchMode === 'orbital' ? 'switch-option active' : 'switch-option'} onClick={() => onLaunchModeChange('orbital')}>
-          Orbital Plane
-        </span>
-      </div>
-
-      <div className="parameter">
-        <label htmlFor="trajectory-preview">Trajectory Preview (T):</label>{' '}
-        <span className={trajectoryPreview ? 'switch-option' : 'switch-option active'} onClick={() => onTrajectoryPreviewChange(false)}>
-          Off
-        </span>
-        <label className="switch">
-          <input
-            type="checkbox"
-            id="trajectory-preview"
-            role="switch"
-            checked={trajectoryPreview}
-            onChange={(e) => onTrajectoryPreviewChange(e.target.checked)}
-          />
-          <span className="switch-track" />
-        </label>
-        <span className={trajectoryPreview ? 'switch-option active' : 'switch-option'} onClick={() => onTrajectoryPreviewChange(true)}>
-          On
-        </span>
-      </div>
-
-      {/* What dragging with the main button (or a finger) does; the right button does the other */}
-      <div className="parameter">
-        <label htmlFor="main-button">Left Button / Touch:</label>{' '}
-        <span className={mainButton === 'launch' ? 'switch-option active' : 'switch-option'} onClick={() => onMainButtonChange('launch')}>
-          Launch
-        </span>
-        <label className="switch">
-          <input
-            type="checkbox"
-            id="main-button"
-            role="switch"
-            checked={mainButton === 'rotate'}
-            onChange={(e) => onMainButtonChange(e.target.checked ? 'rotate' : 'launch')}
-          />
-          <span className="switch-track" />
-        </label>
-        <span className={mainButton === 'rotate' ? 'switch-option active' : 'switch-option'} onClick={() => onMainButtonChange('rotate')}>
-          Rotate View
-        </span>
-        <br />
-        Right button: the other · V: reset the view
-      </div>
-
-      <div className="parameter">
-        <br />
-        <br />
-        <label>Warning: this will break orbits!</label>
-      </div>
-
-      <div className="parameter">
-        <label htmlFor="star-mass">Star Mass:</label>
-        <input
-          type="range"
-          id="star-mass"
-          min={-9667000}
-          max={10333000}
-          step={1000000}
-          value={starMass}
-          onChange={(e) => onStarMassChange(parseFloat(e.target.value))}
-        />
-        <span>{starMass}</span>
-      </div>
-    </div>
-  );
-}
+import { initialSkinId, rememberSkin, skins } from './skins/skins';
 
 function App() {
-  // Define state variables for simulation parameters
-  const [starSize, setStarSize] = useState(0.4); // Default is 0.4 for the star to be reasonably sized
-  const [planetSizeFactor, setPlanetSizeFactor] = useState(2); // Default is 2 to better see the planets
-  const [starMass, setStarMass] = useState(333000); // 333000 times the mass of the earth
-  const [asteroidMass, setAsteroidMass] = useState(1); // times the mass of the earth
-  const [asteroidGravityFactor, setAsteroidGravityFactor] = useState(10); // increase the gravity for asteroids
-  const [planetGravityFactor, setPlanetGravityFactor] = useState(100); // increase the gravity of the planets toward asteroids
-  const [starIntensity, setStarIntensity] = useState(5); // increase the luminosity of the star
-  const [launchMode, setLaunchMode] = useState('screen'); // asteroids are created facing the camera ('screen') or in the planets' plane ('orbital')
+  // The settings of the panel (see SettingsPanel for what they are), changed one by one or all reset at once
+  const [settings, setSettings] = useState(defaultSettings);
+  const changeSetting = useCallback((name, value) => setSettings((previous) => ({ ...previous, [name]: value })), []);
+  const resetSettings = useCallback(() => setSettings(defaultSettings), []);
+  const { speed } = settings;
+  const setSpeed = useCallback((update) => setSettings((previous) => (
+    { ...previous, speed: typeof update === 'function' ? update(previous.speed) : update }
+  )), []);
   const [skinId, setSkinId] = useState(initialSkinId); // the look of the game, see src/skins
-  const [speed, setSpeed] = useState(2); // speed of the simulation: 2 is the normal speed, 1 half of it, 0 the pause
   const [system, setSystem] = useState(0); // increased to start again with a new random system
-  const [asteroidTrail, setAsteroidTrail] = useState(3); // length of the asteroids' trails: 0 for none, 3 for 4 seconds (see Trail.jsx)
-  const [planetTrail, setPlanetTrail] = useState(0); // length of the planets' trails, none by default
-  const [trajectoryPreview, setTrajectoryPreview] = useState(true); // dots showing where the asteroid will go, while aiming
-  const [mainButton, setMainButton] = useState('launch'); // dragging with the main button launches ('launch') or turns the view ('rotate')
-  const newRandomSystem = useCallback(() => setSystem((previous) => previous + 1), []);
+  const newRandomSystem = useCallback(() => {
+    setSystem((previous) => previous + 1);
+    unlock('reroll');
+  }, []);
   // Sound: always off when the game starts. The volume sliders show 0 while it is off; switching it on brings back
   // the level (1 to 10) it had before being cut, remembered for the next visits (see audio/sound.js)
   const [soundOn, setSoundOnState] = useState(false);
@@ -290,6 +30,7 @@ function App() {
   const switchSound = useCallback((on) => {
     setSoundOn(on); // Within the click, the key press or the slider's move, as browsers require to start the sound
     setSoundOnState(on);
+    if (on) unlock('music');
   }, []);
   const toggleSound = useCallback(() => switchSound(!isSoundOn()), []);
   const changeLevel = useCallback((value) => {
@@ -333,6 +74,14 @@ function App() {
       setHintCount((count) => count + 1);
     }).catch(() => {});
   }, []);
+  // The achievements (see achievements.js): the trophy opens their board, a notification shows each new one
+  const { unlocked, toasts } = useAchievements();
+  const [boardOpen, setBoardOpen] = useState(false);
+  const closeBoard = useCallback(() => setBoardOpen(false), []);
+  useEffect(() => { if (speed === 10) unlock('fast-forward'); }, [speed]);
+  useEffect(() => { collect('skins-worn', skinId, skins.length, 'fashion'); }, [skinId]);
+  useEffect(() => { if (interfaceHidden) unlock('ghost'); }, [interfaceHidden]);
+
   // Leaving the full screen, with F or the browser's own way (Esc), brings the interface back
   useEffect(() => {
     const onFullScreenChange = () => { if (!document.fullscreenElement) setInterfaceHidden(false); };
@@ -352,7 +101,7 @@ function App() {
       if (e.ctrlKey || e.metaKey || e.altKey || e.target.closest?.('input[type="text"], select, textarea')) return;
       if ((e.key === 'r' || e.key === 'R') && !e.repeat) newRandomSystem();
       if ((e.key === 'm' || e.key === 'M') && !e.repeat) toggleSound();
-      if ((e.key === 't' || e.key === 'T') && !e.repeat) setTrajectoryPreview((previous) => !previous);
+      if ((e.key === 't' || e.key === 'T') && !e.repeat) setSettings((previous) => ({ ...previous, trajectoryPreview: !previous.trajectoryPreview }));
       if ((e.key === 'h' || e.key === 'H') && !e.repeat) toggleInterface();
       if ((e.key === 'f' || e.key === 'F') && !e.repeat) toggleFullScreen();
       if (e.code !== 'Space') return;
@@ -366,58 +115,26 @@ function App() {
 
   return (
     <div className={interfaceHidden ? 'App interface-hidden' : 'App'} data-skin={skinId}>
-      <StarScene
-        starSize={starSize}
-        planetSizeFactor={planetSizeFactor}
-        starMass={starMass}
-        asteroidMass={asteroidMass}
-        asteroidGravityFactor={asteroidGravityFactor}
-        planetGravityFactor={planetGravityFactor}
-        starIntensity={starIntensity}
-        launchMode={launchMode}
-        skinId={skinId}
-        speed={speed}
-        system={system}
-        asteroidTrail={asteroidTrail}
-        planetTrail={planetTrail}
-        trajectoryPreview={trajectoryPreview}
-        mainButton={mainButton}
-      />
-      <SimulationParameters
-        speed={speed}
-        onSpeedChange={setSpeed}
-        onRandomSystem={newRandomSystem}
+      <StarScene {...settings} skinId={skinId} system={system} />
+      <SettingsPanel
+        settings={settings}
+        onChange={changeSetting}
+        onRandomize={newRandomSystem}
+        onReset={resetSettings}
         volume={soundOn ? volume : 0}
         onVolumeChange={changeVolume}
-        asteroidTrail={asteroidTrail}
-        onAsteroidTrailChange={setAsteroidTrail}
-        planetTrail={planetTrail}
-        onPlanetTrailChange={setPlanetTrail}
-        starSize={starSize}
-        onStarSizeChange={setStarSize}
-        planetSizeFactor={planetSizeFactor}
-        onPlanetSizeFactorChange={setPlanetSizeFactor}
-        starMass={starMass}
-        onStarMassChange={setStarMass}
-        asteroidMass={asteroidMass}
-        onAsteroidMassChange={setAsteroidMass}
-        asteroidGravityFactor={asteroidGravityFactor}
-        onAsteroidGravityFactorChange={setAsteroidGravityFactor}
-        planetGravityFactor={planetGravityFactor}
-        onPlanetGravityFactorChange={setPlanetGravityFactor}
-        starIntensity={starIntensity}
-        onStarIntensityChange={setStarIntensity}
-        launchMode={launchMode}
-        onLaunchModeChange={setLaunchMode}
-        trajectoryPreview={trajectoryPreview}
-        onTrajectoryPreviewChange={setTrajectoryPreview}
-        mainButton={mainButton}
-        onMainButtonChange={setMainButton}
       />
+      {/* The trophy between the sound and the skins: the volume slider, which unrolls on the left of the sound button,
+          never moves it. Its board opens under it. */}
       <div className="top-bar">
         <SoundToggle on={soundOn} onToggle={toggleSound} volume={soundOn ? volume : 0} onVolumeChange={changeVolume} />
+        <div className="achievements-control">
+          <AchievementsButton unlocked={unlocked} open={boardOpen} onToggle={() => setBoardOpen((open) => !open)} />
+          {boardOpen && <AchievementsBoard unlocked={unlocked} onClose={closeBoard} />}
+        </div>
         <SkinSelector skinId={skinId} onSkinChange={changeSkin} />
       </div>
+      <AchievementToasts toasts={toasts} />
       {/* Shown during the pause, even with the settings closed: a tap on it resumes the game too, for touch screens */}
       {speed === 0 && (
         <button type="button" className="paused" onClick={() => setSpeed(lastSpeed.current)}>
