@@ -119,7 +119,8 @@ function Sky({ children }) {
 }
 
 // system: a counter, increased to start again with a new random system
-function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroidGravityFactor, planetGravityFactor, starIntensity, launchMode, skinId, speed, system}) {
+// asteroidTrail, planetTrail: the length of the trails (see Trail.jsx)
+function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroidGravityFactor, planetGravityFactor, starIntensity, launchMode, skinId, speed, system, asteroidTrail, planetTrail}) {
 
   const skin = findSkin(skinId);
   const canvasRef = useRef();
@@ -475,6 +476,7 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
               planets={planets}
               onPlanetCollision={handlePlanetToPlanetCollision}
               planetGravityFactor={planetGravityFactor}
+              trail={planetTrail}
             />
           ))}
 
@@ -501,6 +503,7 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
               asteroidGravityFactor={asteroidGravityFactor}
               starPosition={starPosition}
               planetGravityFactor={planetGravityFactor}
+              trail={asteroidTrail}
             />
           ))}
           </Suspense>

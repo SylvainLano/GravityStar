@@ -5,8 +5,9 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 import { calculateGravitationalForce, asteroidCollisionDistance } from './physics';
 import { useSimulation } from './SimulationClock';
-import { useStyleLook } from './skins/SkinContext';
+import { useSkin, useStyleLook } from './skins/SkinContext';
 import { createAsteroidLook } from './skins/looks';
+import Trail, { trailDuration } from './Trail';
 
 const asteroidModelUrl = './models/meteorite/meteorite.glb';
 const asteroidScale = 0.02;
@@ -16,9 +17,11 @@ const gravitationalForceVector = new THREE.Vector3();
 const deltaEuler = new THREE.Euler();
 const deltaRotation = new THREE.Quaternion();
 
-const Asteroid = ({ index, position, velocity, angularVelocity, active, moving, onStarCollision, starMass, starSize, asteroidMass, asteroids, planets, onAsteroidCollision, onPlanetCollision, planetSizeFactor, asteroidGravityFactor, starPosition, planetGravityFactor }) => {
+// trail: the setting of the asteroids' trails (see Trail.jsx)
+const Asteroid = ({ index, position, velocity, angularVelocity, active, moving, onStarCollision, starMass, starSize, asteroidMass, asteroids, planets, onAsteroidCollision, onPlanetCollision, planetSizeFactor, asteroidGravityFactor, starPosition, planetGravityFactor, trail }) => {
   const asteroidRef = useRef();
   const simulation = useSimulation();
+  const skin = useSkin();
 
   // The model is loaded once for all asteroids: each one gets a light clone sharing its geometry, material and texture
   // (in the stylized skins, a copy of the model with the skin's materials, made once for all asteroids)
@@ -167,7 +170,11 @@ const Asteroid = ({ index, position, velocity, angularVelocity, active, moving, 
   });
 
   return (
-    <primitive object={model} ref={asteroidRef} scale={asteroidScale} receiveShadow castShadow />
+    <>
+      <primitive object={model} ref={asteroidRef} scale={asteroidScale} receiveShadow castShadow />
+      {/* The trail, once launched, in the scene's coordinates */}
+      {moving && trail > 0 && <Trail target={position} duration={trailDuration(trail)} look={skin.trail} color={skin.trail.color} />}
+    </>
   );
 };
 

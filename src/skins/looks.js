@@ -8,8 +8,8 @@ import { createNekoCharacterLook, createNekoStarLook, createNekoAsteroidLook } f
 // The neko style (Neko Nebula) draws the planets and the star as characters: their looks then only hold character,
 // the materials of the character (see NekoNebulaCharacters.jsx).
 
-// Color of each planet's atmosphere, for the rim light of the anime style
-const rimColors = {
+// Color of each planet's atmosphere, for the rim light of the anime style and the planets' trails
+export const planetColors = {
   mercury: '#c9c2b8', venus: '#ffd9a0', earth: '#5ab8ff', mars: '#ff9f80',
   jupiter: '#a8865a', saturn: '#e6d3a0', uranus: '#9ff0f0', neptune: '#7aa8ff',
 };
@@ -27,7 +27,7 @@ export function createPlanetLook(style, { shared, map, name }) {
   map.colorSpace = THREE.SRGBColorSpace;
   if (style === 'neko') return { character: createNekoCharacterLook({ shared, map, name }) };
   return {
-    material: createSurfaceMaterial(style, { map, shared, rimColor: rimColors[name] ?? '#ffffff' }),
+    material: createSurfaceMaterial(style, { map, shared, rimColor: planetColors[name] ?? '#ffffff' }),
     outline: createStyleOutline(style, shared, 2),
   };
 }

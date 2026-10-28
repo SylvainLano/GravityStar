@@ -4,7 +4,7 @@ import SkinSelector from './SkinSelector';
 import { initialSkinId, rememberSkin } from './skins/skins';
 
 // Create a separate component for simulation parameters
-function SimulationParameters({ speed, onSpeedChange, onRandomSystem, starSize, onStarSizeChange, planetSizeFactor, onPlanetSizeFactorChange, starMass, onStarMassChange, asteroidMass, onAsteroidMassChange, asteroidGravityFactor, onAsteroidGravityFactorChange, planetGravityFactor, onPlanetGravityFactorChange, starIntensity, onStarIntensityChange, launchMode, onLaunchModeChange }) {
+function SimulationParameters({ speed, onSpeedChange, onRandomSystem, asteroidTrail, onAsteroidTrailChange, planetTrail, onPlanetTrailChange, starSize, onStarSizeChange, planetSizeFactor, onPlanetSizeFactorChange, starMass, onStarMassChange, asteroidMass, onAsteroidMassChange, asteroidGravityFactor, onAsteroidGravityFactorChange, planetGravityFactor, onPlanetGravityFactorChange, starIntensity, onStarIntensityChange, launchMode, onLaunchModeChange }) {
   // With a mouse, the panel opens when hovered and closes when the mouse leaves it.
   // On touch screens, where nothing is hovered, a tap on its title opens or closes it.
   const [open, setOpen] = useState(false);
@@ -82,6 +82,35 @@ function SimulationParameters({ speed, onSpeedChange, onRandomSystem, starSize, 
           onChange={(e) => onPlanetSizeFactorChange(parseFloat(e.target.value))}
         />
         <span>{planetSizeFactor}</span>
+      </div>
+
+      {/* Lengths of the trails: 0 for none, then each step doubles them (see Trail.jsx) */}
+      <div className="parameter">
+        <label htmlFor="asteroid-trail">Asteroid Trail:</label>
+        <input
+          type="range"
+          id="asteroid-trail"
+          min={0}
+          max={10}
+          step={1}
+          value={asteroidTrail}
+          onChange={(e) => onAsteroidTrailChange(parseFloat(e.target.value))}
+        />
+        <span>{asteroidTrail}</span>
+      </div>
+
+      <div className="parameter">
+        <label htmlFor="planet-trail">Planet Trail:</label>
+        <input
+          type="range"
+          id="planet-trail"
+          min={0}
+          max={10}
+          step={1}
+          value={planetTrail}
+          onChange={(e) => onPlanetTrailChange(parseFloat(e.target.value))}
+        />
+        <span>{planetTrail}</span>
       </div>
 
       <div className="parameter">
@@ -186,6 +215,8 @@ function App() {
   const [skinId, setSkinId] = useState(initialSkinId); // the look of the game, see src/skins
   const [speed, setSpeed] = useState(2); // speed of the simulation: 2 is the normal speed, 1 half of it, 0 the pause
   const [system, setSystem] = useState(0); // increased to start again with a new random system
+  const [asteroidTrail, setAsteroidTrail] = useState(3); // length of the asteroids' trails: 0 for none, 3 for 4 seconds (see Trail.jsx)
+  const [planetTrail, setPlanetTrail] = useState(0); // length of the planets' trails, none by default
   const newRandomSystem = useCallback(() => setSystem((previous) => previous + 1), []);
 
   const changeSkin = useCallback((id) => {
@@ -225,11 +256,17 @@ function App() {
         skinId={skinId}
         speed={speed}
         system={system}
+        asteroidTrail={asteroidTrail}
+        planetTrail={planetTrail}
       />
       <SimulationParameters
         speed={speed}
         onSpeedChange={setSpeed}
         onRandomSystem={newRandomSystem}
+        asteroidTrail={asteroidTrail}
+        onAsteroidTrailChange={setAsteroidTrail}
+        planetTrail={planetTrail}
+        onPlanetTrailChange={setPlanetTrail}
         starSize={starSize}
         onStarSizeChange={setStarSize}
         planetSizeFactor={planetSizeFactor}

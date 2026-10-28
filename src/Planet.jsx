@@ -4,14 +4,17 @@ import * as THREE from 'three';
 
 import { calculateGravitationalForce } from './physics';
 import { useSimulation } from './SimulationClock';
-import { useStyleLook } from './skins/SkinContext';
-import { createPlanetLook } from './skins/looks';
+import { useSkin, useStyleLook } from './skins/SkinContext';
+import { createPlanetLook, planetColors } from './skins/looks';
 import { NekoPlanet } from './skins/NekoNebulaCharacters';
+import Trail, { trailDuration } from './Trail';
 
 // Reused on every frame by all planets, to avoid creating new objects
 const gravitationalForceVector = new THREE.Vector3();
 
-const Planet = ({ index, name, size, position, velocity, rotation, onStarCollision, planetTexture, starMass, starSize, mass, planetSizeFactor, shouldCorrectOrbit, starPosition, planets, planetGravityFactor, onPlanetCollision }) => {
+// trail: the setting of the planets' trails (see Trail.jsx)
+const Planet = ({ index, name, size, position, velocity, rotation, onStarCollision, planetTexture, starMass, starSize, mass, planetSizeFactor, shouldCorrectOrbit, starPosition, planets, planetGravityFactor, onPlanetCollision, trail }) => {
+  const skin = useSkin();
   const planetRef = useRef(); // Moves along the orbit
   const spinRef = useRef(); // Spins on itself, inside (for Uranus as a character, around its tilted axis)
   const texture = useLoader(THREE.TextureLoader, planetTexture);
@@ -146,29 +149,33 @@ const Planet = ({ index, name, size, position, velocity, rotation, onStarCollisi
   // The keys make React replace the mesh when going to or from the realistic skin: updated in place,
   // the realistic material would be overwritten by the reset of the stylized one
   return (
-    <group ref={planetRef}>
-      {look?.character ? (
-        <NekoPlanet name={name} radius={radius} look={look.character} spinRef={spinRef} />
-      ) : (
-        <group ref={spinRef}>
-          {look ? (
-            <mesh key="stylized" material={look.material}>
-              <sphereGeometry args={[radius, 64, 64]} />
-              {look.outline && (
-                <mesh material={look.outline}>
-                  <sphereGeometry args={[radius, 64, 64]} />
-                </mesh>
-              )}
-            </mesh>
-          ) : (
-            <mesh key="realistic" receiveShadow castShadow>
-              <sphereGeometry args={[radius, 64, 64]} />
-              <meshStandardMaterial map={texture} />
-            </mesh>
-          )}
-        </group>
-      )}
-    </group>
+    <>
+      <group ref={planetRef}>
+        {look?.character ? (
+          <NekoPlanet name={name} radius={radius} look={look.character} spinRef={spinRef} />
+        ) : (
+          <group ref={spinRef}>
+            {look ? (
+              <mesh key="stylized" material={look.material}>
+                <sphereGeometry args={[radius, 64, 64]} />
+                {look.outline && (
+                  <mesh material={look.outline}>
+                    <sphereGeometry args={[radius, 64, 64]} />
+                  </mesh>
+                )}
+              </mesh>
+            ) : (
+              <mesh key="realistic" receiveShadow castShadow>
+                <sphereGeometry args={[radius, 64, 64]} />
+                <meshStandardMaterial map={texture} />
+              </mesh>
+            )}
+          </group>
+        )}
+      </group>
+      {/* The trail, in the scene's coordinates, in the planet's color */}
+      {trail > 0 && <Trail target={position} duration={trailDuration(trail)} look={skin.trail} color={planetColors[name] ?? '#ffffff'} />}
+    </>
   );
 };
 
