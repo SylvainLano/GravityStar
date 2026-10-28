@@ -9,6 +9,7 @@ Each game starts with the planets at random places on their orbits (the farthest
 The "New random system" button of the settings, or the R key, starts again with a new random system, keeping the settings.
 
 - **Launch an asteroid**: press anywhere in the scene to create an asteroid under the pointer, drag to aim (an arrow shows the direction and strength), then release to throw it. It works with a mouse, a finger or a pen.
+  While aiming, dots show the path the asteroid will follow, bent by the gravity of the star and the planets; a bigger dot marks where it would hit one of them. The prediction follows the rules of the game, but leaves out the pull of the planets on each other and the other asteroids.
 - **Launch mode**, in the settings:
   - *Free Throw* (default): asteroids are created facing the camera and get a small push towards the star.
   - *Orbital Plane*: asteroids are created in the plane where the planets orbit, and thrown exactly where you aim.
@@ -55,6 +56,7 @@ The **style lab** (`lab.html`) is a development tool to design and compare the s
 
 - `src/StarScene.jsx`: the scene, the planets' data and the launching of the asteroids
 - `src/Planet.jsx`, `src/Asteroid.jsx`, `src/Star.jsx`, `src/physics.js`: the bodies and their gravity, computed with a fixed time step so that the game runs at the same speed whatever the frame rate
+- `src/TrajectoryPreview.jsx`: the path shown while aiming, predicted by `predictTrajectory` in `src/physics.js`
 - `src/SimulationClock.jsx`: the clock of the simulation, which follows the Speed setting and cuts fast frames into small steps so that the bodies follow the same paths at any speed
 - `src/skins/skins.js`: the list of skins, with their colors
 - `src/skins/styleMaterials.js`: the shaders of the stylized skins; `looks.js` makes the materials of each element with them

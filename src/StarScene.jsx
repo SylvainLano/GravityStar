@@ -7,6 +7,7 @@ import StarParticle from './StarParticle';
 import Star from './Star';
 import TwinklingStar from './TwinklingStar';
 import Arrow from './Arrow';
+import TrajectoryPreview from './TrajectoryPreview';
 import Planet from './Planet';
 import Explosion from './Explosion';
 import { SimulationClock, SimulationContext, createSimulation } from './SimulationClock';
@@ -88,6 +89,16 @@ function createPlanets(starSize) {
       shouldCorrectOrbit: true,
     };
   });
+}
+
+// The velocity an asteroid gets when released, written into target: the aimed velocity,
+// plus a small momentum towards the star when thrown in front of the camera
+function getLaunchVelocity(aim, target) {
+  target.copy(aim.velocity);
+  if (aim.mode === 'screen') {
+    target.add(directionToStar.subVectors(starPosition, aim.origin).multiplyScalar(momentumScale));
+  }
+  return target;
 }
 
 // Puts the camera at the chosen position, looking at the star
@@ -294,11 +305,7 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
     updateAim(e);
     aim.current.active = false;
 
-    // Launch with the aimed velocity (plus a small momentum towards the star when thrown in front of the camera)
-    const launchVelocity = aim.current.velocity.clone();
-    if (aim.current.mode === 'screen') {
-      launchVelocity.add(directionToStar.subVectors(starPosition, aim.current.origin).multiplyScalar(momentumScale));
-    }
+    const launchVelocity = getLaunchVelocity(aim.current, new THREE.Vector3());
 
     const launchedIndex = aim.current.asteroidIndex;
     setAsteroids((prevAsteroids) =>
@@ -513,6 +520,20 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
 
           {/* Launching arrow, shown while aiming */}
           <Arrow aim={aim} referenceDistance={cameraPosition.distanceTo(asteroidStartingPosition)} />
+
+          {/* Where the asteroid will go, shown while aiming */}
+          <TrajectoryPreview
+            aim={aim}
+            getLaunchVelocity={getLaunchVelocity}
+            planets={planets}
+            starPosition={starPosition}
+            starMass={starMass}
+            starSize={starSize}
+            asteroidGravityFactor={asteroidGravityFactor}
+            planetGravityFactor={planetGravityFactor}
+            planetSizeFactor={planetSizeFactor}
+            color={skin.arrow ?? 'red'}
+          />
 
         </scene>
         </SkinProvider>
