@@ -1,7 +1,6 @@
-import { useRef, useMemo, useState, useCallback, useEffect } from 'react';
+import { useRef, useMemo, useState, useCallback, useEffect, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 import Asteroid from './Asteroid';
 import StarParticle from './StarParticle';
@@ -11,11 +10,11 @@ import Arrow from './Arrow';
 import Planet from './Planet';
 import Explosion from './Explosion';
 
-export function calculateGravitationalForce(objetMass, position, objectPosition) {
+export function calculateGravitationalForce(objetMass, position, objectPosition, target = new THREE.Vector3()) {
   const gravitationalConstant = 6.674 * Math.pow(10, -11); // Adjusted gravitational constant
 
   // Calculate the vector from the planet to the star (sun)
-  const distanceVector = new THREE.Vector3(); // Initialize a vector
+  const distanceVector = target; // Written into target, so callers can reuse a vector instead of creating one on every frame
   distanceVector.subVectors(position, objectPosition); // Assuming the star is at the origin
 
   // Calculate the magnitude of the force
@@ -27,6 +26,9 @@ export function calculateGravitationalForce(objetMass, position, objectPosition)
 
   return forceVector;
 }
+
+// Keep loaded files in memory (the sun texture is reloaded when its luminosity changes)
+THREE.Cache.enabled = true;
 
 // Setting up const and function common to both the MouseEventsHandler and the main StarScene
 const starPosition = new THREE.Vector3(0, 0, 0);
@@ -233,44 +235,20 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
     }
   ]);
 
-  // Caching the ten first asteroid GLTF
-  THREE.Cache.enabled = true;
-  const gltfLoader = new GLTFLoader();
-  const cachedAsteroidGLTFs = [];
-  const asteroidScale = 0.02;  
-  const [asteroidGLTFIndex, setAsteroidGLTFIndex] = useState(0);
-  for (let i = 0; i < 10; i++) {
-    gltfLoader.load('./models/meteorite/scene.gltf', (gltf) => {
-      // Modify the scale of the loaded model if needed
-      gltf.scene.scale.set(asteroidScale, asteroidScale, asteroidScale);
-      const asteroidGLTF = gltf; // Clone to avoid modifying the same instance
-      cachedAsteroidGLTFs.push(asteroidGLTF);
-    });
-  }
-
-  // Method to retrieve the next asteroidGLTF, to give them time to load when player creates asteroids too fast for one single model to be loaded
-  function getAsteroidGLTF () {
-    const asteroidModel = cachedAsteroidGLTFs.splice(asteroidGLTFIndex, 1)[0]; // Remove used model
-    gltfLoader.load('./models/meteorite/scene.gltf', (gltf) => {
-      gltf.scene.scale.set(asteroidScale, asteroidScale, asteroidScale);
-      const newAsteroidGLTF = gltf;
-      cachedAsteroidGLTFs.push(newAsteroidGLTF); // Add a new model to the cache
-    });
-    setAsteroidGLTFIndex((prevAsteroidGLTFIndex) => (prevAsteroidGLTFIndex + 1) % 5);
-    return asteroidModel;
-  }
-  
   // Create a spotlight where the camera is to see the asteroids to be launched
-  const spotlight = new THREE.SpotLight(0xffffff); // Set the light color
-  spotlight.position.copy(cameraPosition); // Set the light position
-  // Set the initial intensity to 0 to turn it off
-  // (15 with physical lights matches the former intensity of 4 with three.js' legacy lights)
-  spotlight.intensity = 15;
-  // Set spotlight parameters
-  spotlight.distance = 4; // Adjust the light's distance
-  spotlight.angle = Math.PI / 3; // Set the cone angle (adjust as needed)
-  spotlight.penumbra = 2; // Set the penumbra (adjust as needed)
-  spotlight.target.position.copy(starPosition);
+  // (created once: a new light on every render made React replace it each time)
+  const spotlight = useMemo(() => {
+    const light = new THREE.SpotLight(0xffffff); // Set the light color
+    light.position.copy(cameraPosition); // Set the light position
+    // 15 with physical lights matches the former intensity of 4 with three.js' legacy lights
+    light.intensity = 15;
+    // Set spotlight parameters
+    light.distance = 4; // Adjust the light's distance
+    light.angle = Math.PI / 3; // Set the cone angle (adjust as needed)
+    light.penumbra = 2; // Set the penumbra (adjust as needed)
+    light.target.position.copy(starPosition);
+    return light;
+  }, []);
 
   // Creating the stars in the background
   const numStars = 200;
@@ -305,30 +283,13 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
     return particlesArray;
   }, [starSize, starIntensity]);
 
-  // Creating the lights coming from the star to illuminate the system
-  // Intensity, distance and decay are tuned for physical lights to match the former look of three.js' legacy lights
-  const numberOfLights = 20;
-  const lights = useMemo(() => {
-    const updatedLights = [];
-    for (let i = 0; i < numberOfLights; i++) {
-      const angle = (i / numberOfLights) * Math.PI * 2; // Angle around the star
-      const radius = starSize + 0.1; // Distance from the star
-      const xPos = Math.cos(angle) * radius;
-      const yPos = Math.sin(angle) * radius;
-  
-      updatedLights.push(
-        <pointLight
-          key={i}
-          position={[xPos, yPos, 0]}
-          intensity={starIntensity * 3.6 / numberOfLights}
-          distance={19}
-          decay={0.75}
-        />
-      );
-    }
-    return updatedLights;
-  }, [starSize, starIntensity]);
-  
+  // Lights shared by the explosions: they always stay in the scene and are switched off when unused,
+  // because adding or removing a light makes three.js recompile every material (a short freeze at each explosion)
+  const explosionLights = useMemo(() => Array.from({ length: 3 }, () => ({
+    light: new THREE.PointLight(0xff8800, 0, 4, 0), // Color, Intensity, Distance, Decay
+    owner: null,
+    since: 0
+  })), []);
 
   // Managing the asteroids to be launched
   const [asteroids, setAsteroids] = useState([]);
@@ -343,8 +304,7 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
       velocity: initialVelocity,
       angularVelocity: initialVelocity,
       active: true,
-      moving: false,
-      gltf: getAsteroidGLTF()
+      moving: false
     };
 
     setNextKey((prevNextKey) => prevNextKey + 1);
@@ -403,7 +363,6 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
     setExplosions((prevExplosions) => {
       const newExplosion = {
         index: nextKey,
-        scene: sceneRef.current,
         position: position,
         timestamp: Date.now()
       };
@@ -424,7 +383,6 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
     setExplosions((prevExplosions) => {
       const newExplosion = {
         index: nextKey,
-        scene: sceneRef.current,
         position: position,
         timestamp: Date.now()
       };
@@ -515,8 +473,13 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
           {/* Add the spotlight to the scene */}
           <primitive object={spotlight} />
 
-          {/* Add the ambient light to the scene */}
-          {lights}  
+          {/* Add the light coming from the star to illuminate the system
+              Intensity, distance and decay are tuned for physical lights to match the former look of three.js' legacy lights
+              (one light at the center lights the planets like the former ring of 20 lights, for a fraction of the cost) */}
+          <pointLight position={starPosition} intensity={starIntensity * 3.6} distance={19} decay={0.75} />
+
+          {/* Add the lights shared by the explosions */}
+          {explosionLights.map((entry, i) => <primitive key={`explosion_light_${i}`} object={entry.light} />)}
         
           <color attach="background" args={['#000']} />
           
@@ -541,6 +504,8 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
             />
           ))}
 
+          {/* Asteroids wait for their model here, so a late load never hides the rest of the scene */}
+          <Suspense fallback={null}>
           {asteroids.map((asteroid) => (
             <Asteroid
               key={`asteroid_${asteroid.index}`}
@@ -555,7 +520,6 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
               onAsteroidCollision={handleAsteroidToAsteroidCollision}
               planets={planets}
               onPlanetCollision={handleAsteroidToPlanetCollision}
-              gltf={asteroid.gltf}
               starMass={starMass}
               starSize={starSize}
               asteroidMass={asteroidMass}
@@ -565,12 +529,13 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
               planetGravityFactor={planetGravityFactor}
             />
           ))}
+          </Suspense>
 
           {explosions.map((explosion) => (
             <Explosion
               key={`explosion_${explosion.index}`}
               index={explosion.index}
-              scene={sceneRef.current}
+              lights={explosionLights}
               position={explosion.position}
               timestamp={explosion.timestamp}
               terminateExplosion={handleExplosionEnd}

@@ -1,25 +1,33 @@
 import React, { useRef, useState, useMemo } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
-import { Quaternion } from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 import { calculateGravitationalForce } from './StarScene';
 
+const asteroidModelUrl = './models/meteorite/meteorite.glb';
+const asteroidScale = 0.02;
 
-const Asteroid = ({ index, position, velocity, angularVelocity, active, moving, onStarCollision, gltf, starMass, starSize, asteroidMass, asteroids, planets, onAsteroidCollision, onPlanetCollision, planetSizeFactor, asteroidGravityFactor, starPosition, planetGravityFactor }) => {
+// Reused on every frame by all asteroids, to avoid creating new objects
+const gravitationalForceVector = new THREE.Vector3();
+const deltaEuler = new THREE.Euler();
+const deltaRotation = new THREE.Quaternion();
+
+const Asteroid = ({ index, position, velocity, angularVelocity, active, moving, onStarCollision, starMass, starSize, asteroidMass, asteroids, planets, onAsteroidCollision, onPlanetCollision, planetSizeFactor, asteroidGravityFactor, starPosition, planetGravityFactor }) => {
   const asteroidRef = useRef();
+
+  // The model is loaded once for all asteroids: each one gets a light clone sharing its geometry, material and texture
+  const { scene } = useLoader(GLTFLoader, asteroidModelUrl);
+  const model = useMemo(() => scene.clone(), [scene]);
 
   // Add a state variable for activity
   const [isActive, setIsActive] = useState(active);
-
-  // Quaternion for asteroid's rotation
-  const [rotationQuaternion, setRotationQuaternion] = useState(new THREE.Quaternion());
 
   // Calculate neighbors for this asteroid based on the existing asteroids
   const asteroidNeighbors = useMemo(() => {
     const data = [];
     for (const asteroid of asteroids) {
-      if ( asteroid !== undefined && asteroid.index < index && asteroid.gltf ) {
+      if ( asteroid !== undefined && asteroid.index < index ) {
         data.push({
           index: asteroid.index,
           framesUntilCheck: Math.random()*asteroids.length, // Calculate based on your logic
@@ -45,39 +53,25 @@ const Asteroid = ({ index, position, velocity, angularVelocity, active, moving, 
 
   useFrame(() => {
     // Update asteroid position based on velocity and active state
-    if (isActive && moving && gltf) {
+    if (isActive && moving) {
       position.add(velocity);
 
       asteroidRef.current.position.copy(position);
 
-      // Calculate the direction and distance to the star
-      const starPosition = new THREE.Vector3(0, 0, 0); // Star position
-      const direction = starPosition.clone().sub(position);
-      const distanceToStar = direction.length();
+      // Calculate the distance to the star
+      const distanceToStar = position.distanceTo(starPosition);
 
       // Ensure distance is greater than 0 to avoid division by zero
       if (distanceToStar > 0) {
         // Calculate gravitational force using the calculateGravitationalForce function
-        const gravitationalForce = calculateGravitationalForce(starMass, position, starPosition);
-        
+        const gravitationalForce = calculateGravitationalForce(starMass, position, starPosition, gravitationalForceVector);
+
         // Update velocity by adding gravitational force
         velocity.add(gravitationalForce.multiplyScalar(asteroidGravityFactor));
 
-        // Update rotationQuaternion based on angular velocity
-        const deltaRotation = new Quaternion()
-          .setFromEuler(
-            new THREE.Euler(
-              angularVelocity.x,
-              angularVelocity.y,
-              angularVelocity.z,
-              'XYZ'
-            )
-          )
-          .multiply(rotationQuaternion);
-        setRotationQuaternion(deltaRotation);
-
-        // Apply rotationQuaternion to asteroid's rotation
-        asteroidRef.current.quaternion.copy(rotationQuaternion);
+        // Rotate the asteroid directly based on angular velocity: going through React state would re-render it on every frame
+        deltaRotation.setFromEuler(deltaEuler.set(angularVelocity.x, angularVelocity.y, angularVelocity.z, 'XYZ'));
+        asteroidRef.current.quaternion.premultiply(deltaRotation);
 
         if (distanceToStar <= starSize) {
           // Notify the parent component about the collision
@@ -130,7 +124,7 @@ const Asteroid = ({ index, position, velocity, angularVelocity, active, moving, 
                 } else {
                   
                   // Calculate gravitational force of the planet using the calculateGravitationalForce function
-                  const planetGravitationalForce = calculateGravitationalForce(planet.mass, position, planet.position);
+                  const planetGravitationalForce = calculateGravitationalForce(planet.mass, position, planet.position, gravitationalForceVector);
                   
                   // Update velocity by adding gravitational force
                   velocity.add(planetGravitationalForce.multiplyScalar(asteroidGravityFactor*planetGravityFactor));
@@ -151,7 +145,7 @@ const Asteroid = ({ index, position, velocity, angularVelocity, active, moving, 
           }
         }
       }
-    } else if (isActive && gltf) {
+    } else if (isActive) {
       asteroidRef.current.position.x = position.x;
       asteroidRef.current.position.y = position.y;
       asteroidRef.current.position.z = position.z;
@@ -159,9 +153,11 @@ const Asteroid = ({ index, position, velocity, angularVelocity, active, moving, 
   });
 
   return (
-    // Render the loaded model only if gltf is not null
-    gltf ? <primitive object={gltf.scene.clone()} ref={asteroidRef} receiveShadow castShadow /> : null
+    <primitive object={model} ref={asteroidRef} scale={asteroidScale} receiveShadow castShadow />
   );
 };
+
+// Start loading the model with the rest of the scene, before the first asteroid is launched
+useLoader.preload(GLTFLoader, asteroidModelUrl);
 
 export default React.memo(Asteroid);

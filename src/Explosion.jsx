@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import React, { useRef, useEffect, useMemo, useState } from 'react';
+import React, { useRef, useLayoutEffect, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import ExplosionParticle from './ExplosionParticle';
 
-const Explosion = ({ index, scene, position, timestamp, terminateExplosion }) => {
+const Explosion = ({ index, lights, position, timestamp, terminateExplosion }) => {
   const explosionRef = useRef();
   const explosionDuration = 20000;
   const maxLightIntensity = 3 * Math.PI; // Physical lights need a factor PI to match the former legacy lights
@@ -12,24 +12,26 @@ const Explosion = ({ index, scene, position, timestamp, terminateExplosion }) =>
   const particlesPerFrame = 2; // Adjust this value as needed
   const [active, setActive] = useState(true);
   const [particles, setParticles] = useState([]);
+  const lightEntry = useRef(null);
 
-  // Create explosion light with variable intensity
-  const explosionLight = useMemo(() => {
-    const light = new THREE.PointLight(0xff8800, maxLightIntensity, 4, 0); // Color, Intensity, Distance, Decay
-    light.position.copy(position);
-    light.castShadow = true;
-    return light;
-  }, [position, timestamp]);
-
-  // Add explosion light to the scene on mount
-  useEffect(() => {
-    scene.add(explosionLight);
+  // Borrow one of the shared explosion lights on mount: a free one, or else the one taken the longest ago
+  useLayoutEffect(() => {
+    const entry = lights.find((l) => l.owner === null) ?? lights.reduce((oldest, l) => (l.since < oldest.since ? l : oldest));
+    entry.owner = index;
+    entry.since = timestamp;
+    entry.light.position.copy(position);
+    entry.light.color.set(0xff8800);
+    entry.light.intensity = maxLightIntensity;
+    lightEntry.current = entry;
 
     return () => {
-      // Remove explosion light when the component unmounts
-      scene.remove(explosionLight);
+      // Switch the light off and give it back when the explosion ends, unless a newer explosion took it over
+      if (entry.owner === index) {
+        entry.owner = null;
+        entry.light.intensity = 0;
+      }
     };
-  }, [explosionLight, scene]);
+  }, [lights, index, position, timestamp]);
 
   // Update explosion light intensity on each frame
   useFrame(() => {
@@ -62,7 +64,9 @@ const Explosion = ({ index, scene, position, timestamp, terminateExplosion }) =>
 
           setParticles((prevParticles) => [...prevParticles, ...newParticles]);
 
-        } else {
+        } else if (lightEntry.current && lightEntry.current.owner === index) {
+          // Only drive the light while this explosion still owns it
+          const explosionLight = lightEntry.current.light;
 
           // Linearly decrease intensity over a quarter of the explosion duration
           const intensity = maxLightIntensity * (1 - elapsedMilliseconds / (explosionDuration / 4));

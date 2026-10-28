@@ -4,6 +4,9 @@ import * as THREE from 'three';
 
 import { calculateGravitationalForce } from './StarScene';
 
+// Reused on every frame by all planets, to avoid creating new objects
+const gravitationalForceVector = new THREE.Vector3();
+
 const Planet = ({ index, size, position, velocity, rotation, onStarCollision, planetTexture, starMass, starSize, mass, planetSizeFactor, shouldCorrectOrbit, starPosition, planets, planetGravityFactor, onPlanetCollision }) => {
   const planetRef = useRef();
   const texture = useLoader(THREE.TextureLoader, planetTexture);
@@ -23,15 +26,13 @@ const Planet = ({ index, size, position, velocity, rotation, onStarCollision, pl
   }, [index]);
   
   useFrame(() => {
-    // Calculate the direction and distance to the star
-    const starPosition = new THREE.Vector3(0, 0, 0); // Star position
-    const direction = starPosition.clone().sub(position);
-    const distanceToStar = direction.length();
+    // Calculate the distance to the star
+    const distanceToStar = position.distanceTo(starPosition);
 
     // Ensure distance is greater than 0 to avoid division by zero
     if (distanceToStar > 0) {
       // Calculate gravitational force using the calculateGravitationalForce function
-      const gravitationalForce = calculateGravitationalForce(starMass, position, starPosition);
+      const gravitationalForce = calculateGravitationalForce(starMass, position, starPosition, gravitationalForceVector);
     
       // Update velocity by adding gravitational force
       velocity.add(gravitationalForce);
@@ -47,16 +48,9 @@ const Planet = ({ index, size, position, velocity, rotation, onStarCollision, pl
         const newX = position.length() * Math.cos(newAngle);
         const newZ = position.length() * Math.sin(newAngle);
 
-        const newPosition = new THREE.Vector3(newX,0,newZ);
-      
-        // Calculate the corrected velocity direction while maintaining the velocity magnitude
-        const correctedVelocityDirection = newPosition.clone().sub(position).normalize();
-      
-        // Keep the magnitude of the velocity vector constant
-        const correctedVelocity = correctedVelocityDirection.clone().multiplyScalar(distance);
-      
-        // Update both velocity and position with corrected values
-        velocity.copy(correctedVelocity);
+        // Point the velocity towards the new position while maintaining the velocity magnitude
+        // (computed directly in velocity, to avoid creating vectors on every frame)
+        velocity.set(newX, 0, newZ).sub(position).normalize().multiplyScalar(distance);
 
       } else {
         for (const neighbor of planetNeighbors) {
@@ -96,7 +90,7 @@ const Planet = ({ index, size, position, velocity, rotation, onStarCollision, pl
               } else {
                 
                 // Calculate gravitational force of the planet using the calculateGravitationalForce function
-                const planetGravitationalForce = calculateGravitationalForce(planet.mass, position, planet.position);
+                const planetGravitationalForce = calculateGravitationalForce(planet.mass, position, planet.position, gravitationalForceVector);
                 
                 // Update velocity by adding gravitational force
                 velocity.add(planetGravitationalForce.multiplyScalar(planetGravityFactor));
