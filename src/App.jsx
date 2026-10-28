@@ -45,6 +45,10 @@ function SimulationParameters({ speed, onSpeedChange, onRandomSystem, volume, on
       </div>
 
       <div className="parameter">
+        H: hide the interface · F: full screen
+      </div>
+
+      <div className="parameter">
         <label htmlFor="volume">Volume (M: sound on/off):</label>
         <input
           type="range"
@@ -284,8 +288,37 @@ function App() {
     rememberSkin(id);
   }, []);
 
+  // The interface can be hidden, to look at the scene or take a picture of it. When it is hidden, a reminder of how
+  // to bring it back is shown for a moment (hintCount restarts it).
+  const [interfaceHidden, setInterfaceHidden] = useState(false);
+  const [hintCount, setHintCount] = useState(0);
+  const toggleInterface = useCallback(() => {
+    setInterfaceHidden((hidden) => !hidden);
+    setHintCount((count) => count + 1);
+  }, []);
+  // Full screen without the interface, or back to the page
+  const toggleFullScreen = useCallback(() => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+      return;
+    }
+    if (!document.documentElement.requestFullscreen) return; // Not available everywhere (iPhones)
+    // Within the key press, as browsers require
+    document.documentElement.requestFullscreen().then(() => {
+      setInterfaceHidden(true);
+      setHintCount((count) => count + 1);
+    }).catch(() => {});
+  }, []);
+  // Leaving the full screen, with F or the browser's own way (Esc), brings the interface back
+  useEffect(() => {
+    const onFullScreenChange = () => { if (!document.fullscreenElement) setInterfaceHidden(false); };
+    document.addEventListener('fullscreenchange', onFullScreenChange);
+    return () => document.removeEventListener('fullscreenchange', onFullScreenChange);
+  }, []);
+
   // The space bar pauses the game, and resumes it at the speed it had before. The R key starts a new random system,
-  // the M key switches the sound on and off, the T key the trajectory preview.
+  // the M key switches the sound on and off, the T key the trajectory preview. The H key hides the interface, the F key
+  // puts the game in full screen without it.
   const lastSpeed = useRef(speed);
   useEffect(() => {
     if (speed > 0) lastSpeed.current = speed;
@@ -296,6 +329,8 @@ function App() {
       if ((e.key === 'r' || e.key === 'R') && !e.repeat) newRandomSystem();
       if ((e.key === 'm' || e.key === 'M') && !e.repeat) toggleSound();
       if ((e.key === 't' || e.key === 'T') && !e.repeat) setTrajectoryPreview((previous) => !previous);
+      if ((e.key === 'h' || e.key === 'H') && !e.repeat) toggleInterface();
+      if ((e.key === 'f' || e.key === 'F') && !e.repeat) toggleFullScreen();
       if (e.code !== 'Space') return;
       // Also keeps the space bar from pressing the focused button (a skin, the settings' title)
       e.preventDefault();
@@ -306,7 +341,7 @@ function App() {
   }, []);
 
   return (
-    <div className="App" data-skin={skinId}>
+    <div className={interfaceHidden ? 'App interface-hidden' : 'App'} data-skin={skinId}>
       <StarScene
         starSize={starSize}
         planetSizeFactor={planetSizeFactor}
@@ -361,6 +396,12 @@ function App() {
         <button type="button" className="paused" onClick={() => setSpeed(lastSpeed.current)}>
           Paused · Space or tap to resume
         </button>
+      )}
+      {/* While the interface is hidden: how to bring it back, shown for a moment then faded out */}
+      {interfaceHidden && (
+        <div key={hintCount} className="interface-hint">
+          {document.fullscreenElement ? 'H: show interface · Esc: leave full screen' : 'H: show interface'}
+        </div>
       )}
       {/* Credits required by the licenses of the 3D model and of the textures */}
       <div className="credits">

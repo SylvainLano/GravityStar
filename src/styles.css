@@ -405,6 +405,37 @@ body {
   cursor: pointer;
 }
 
+/* The H key hides the interface, and the F key in full screen (see App.jsx): only the scene is left */
+.App.interface-hidden .simulation-parameters,
+.App.interface-hidden .top-bar,
+.App.interface-hidden .paused,
+.App.interface-hidden .credits {
+  display: none;
+}
+
+/* Reminder of how to bring the interface back, at the place of the pause indicator, fading out after a moment */
+.interface-hint {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 12px;
+  border: var(--ui-border-width) solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  background-color: var(--panel-bg);
+  color: var(--panel-title);
+  font-family: 'Space Mono', monospace;
+  font-size: 9pt;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: interface-hint 3s ease forwards;
+}
+
+@keyframes interface-hint {
+  0%, 70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 /* Under the skin selector when the screen is too narrow for both */
 @media (max-width: 720px) {
   .paused {
