@@ -14,6 +14,7 @@ The "New random system" button of the settings, or the R key, starts again with 
   - *Free Throw* (default): asteroids are created facing the camera and get a small push towards the star.
   - *Orbital Plane*: asteroids are created in the plane where the planets orbit, and thrown exactly where you aim.
 - **Trails**: the Asteroid Trail and Planet Trail settings draw the path of the bodies behind them, in the style of the skin. 0 draws none; from 1 to 10, each step doubles their length, from 1 second to about 8 and a half minutes of the game (asteroids: 3 by default; planets: none by default).
+- **Sound**: off when the game starts; the speaker button next to the skins, or the M key, switches it on. Its volume is set with the slider that unrolls when hovering the speaker button, or with the Volume setting: they show 0 while the sound is off, sliding them up switches it on, and down to 0 cuts it. Switching it on brings back the volume it had before being cut, remembered for the next visits (7 the first time, or after sliding it down to 0). Nothing can be heard in space, so the Realistic skin turns the motion into music instead (a "music of the spheres"): each planet holds a note drawn from its orbit (Mercury the highest, Neptune the lowest), louder as it comes closer and ringing when it passes in front of the star; a moving asteroid whistles higher as it goes faster, and an impact makes the system rumble. The stylized skins, which make no claim to realism, have sound effects in their own style.
 - **Zoom**: the mouse wheel (or a pinch on a touchpad) and the + and - keys bring the camera closer to the star or farther from it.
 - **Speed**: the Speed setting slows the game down (1 is half speed), speeds it up (up to 10, five times faster) or pauses it (0). The space bar pauses and resumes the game. While it is paused, you can still create and aim asteroids: they all set off when the game resumes.
 - **Settings**: hover the "Change the settings here" panel (or tap it on a touch screen) to change the size and luminosity of the star, the size of the planets, the mass of the asteroids and the strength of gravity. Changing the star's mass breaks the orbits.
@@ -58,6 +59,7 @@ The **style lab** (`lab.html`) is a development tool to design and compare the s
 - `src/StarScene.jsx`: the scene, the planets' data and the launching of the asteroids
 - `src/Planet.jsx`, `src/Asteroid.jsx`, `src/Star.jsx`, `src/physics.js`: the bodies and their gravity, computed with a fixed time step so that the game runs at the same speed whatever the frame rate
 - `src/Trail.jsx`: the trails of the bodies, with a drawing style for each skin
+- `src/audio/sound.js`: the sounds, made by the browser (Web Audio): the music of the spheres and the sound effects of each skin
 - `src/TrajectoryPreview.jsx`: the path shown while aiming, predicted by `predictTrajectory` in `src/physics.js`
 - `src/SimulationClock.jsx`: the clock of the simulation, which follows the Speed setting and cuts fast frames into small steps so that the bodies follow the same paths at any speed
 - `src/skins/skins.js`: the list of skins, with their colors

@@ -12,6 +12,8 @@ import Planet from './Planet';
 import Explosion from './Explosion';
 import { SimulationClock, SimulationContext, createSimulation } from './SimulationClock';
 import { asteroidCollisionDistance } from './physics';
+import { playSound, panOf, planetNotes, setSoundStyle } from './audio/sound';
+import SoundBridge from './audio/SoundBridge';
 import { findSkin } from './skins/skins';
 import { SkinProvider } from './skins/SkinContext';
 import BackgroundStars from './skins/BackgroundStars';
@@ -134,6 +136,11 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
 
   // The planets, each at a random angle of its orbit (see createPlanets)
   const [planets, setPlanets] = useState(() => createPlanets(starSize));
+  // Planets already fallen into the star, whose fall has been heard
+  const fallenPlanets = useRef(new Set());
+
+  // The sounds in the style of the skin (see audio/sound.js)
+  useEffect(() => { setSoundStyle(skin.sound ?? 'spheres'); }, [skin]);
 
   // Create a spotlight where the camera is to see the asteroids to be launched
   // (created once: a new light on every render made React replace it each time)
@@ -307,6 +314,7 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
     aim.current.active = false;
 
     const launchVelocity = getLaunchVelocity(aim.current, new THREE.Vector3());
+    playSound('launch', { strength: launchVelocity.length() / 0.03, pan: panOf(aim.current.origin.x) });
 
     const launchedIndex = aim.current.asteroidIndex;
     setAsteroids((prevAsteroids) =>
@@ -317,6 +325,7 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
   };
 
   const handleAsteroidToStarCollision = (collidedAsteroidIndex) => {
+    playSound('star', { strength: 0.5 });
     // Update the state to remove the collided asteroid
     setAsteroids((prevAsteroids) => prevAsteroids.filter((asteroid) => asteroid.index !== collidedAsteroidIndex));
   };  
@@ -327,6 +336,7 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
   };
 
   const handleAsteroidToAsteroidCollision = useCallback((collidedAsteroid1, collidedAsteroid2, position) => {
+    playSound('crash', { pan: panOf(position.x) });
     // Add a new explosion to the array
     const newExplosion = {
       index: nextKey.current++,
@@ -340,6 +350,9 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
   }, []);
 
   const handleAsteroidToPlanetCollision = useCallback((collidedAsteroid, collidedPlanet, position, momentumToAdd, angularMomentumToAdd) => {
+
+    // Louder when the planet is shaken harder, in the planet's note for the music of the spheres
+    playSound('impact', { strength: momentumToAdd.length() * 150, pan: panOf(position.x), note: planetNotes[planetData[collidedPlanet - 1]?.name] });
 
     // Add a new explosion to the array
     const newExplosion = {
@@ -371,6 +384,9 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
 
   const handlePlanetToPlanetCollision = useCallback((collidedPlanet1, momentumToAdd1, collidedPlanet2, momentumToAdd2) => {
 
+    // Both planets see the collision: only one of them plays it
+    if (collidedPlanet1 < collidedPlanet2) playSound('impact', { strength: 1, note: planetNotes[planetData[collidedPlanet1 - 1]?.name] });
+
     setPlanets((prevPlanets) =>
       prevPlanets.map((planet) => {
         if (planet.index === collidedPlanet1) {
@@ -394,6 +410,11 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
   }, []);
 
   const handlePlanetToStarCollision = (collidedPlanetIndex) => {
+    // A planet inside the star calls this until it is removed: its fall is played once
+    if (!fallenPlanets.current.has(collidedPlanetIndex)) {
+      fallenPlanets.current.add(collidedPlanetIndex);
+      playSound('star', { strength: 1 });
+    }
     // Update the state to remove the collided planet
     setPlanets((prevPlanets) => prevPlanets.filter((planet) => planet.index !== collidedPlanetIndex));
   };  
@@ -420,6 +441,7 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
     setAsteroids([]);
     setExplosions([]);
     setPlanets(createPlanets(starSize).map((planet) => ({ ...planet, shouldCorrectOrbit: starMass === 333000 })));
+    fallenPlanets.current.clear();
   }, [system]);
 
   return (
@@ -523,6 +545,9 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
 
           {/* Launching arrow, shown while aiming */}
           <Arrow aim={aim} referenceDistance={cameraPosition.distanceTo(asteroidStartingPosition)} />
+
+          {/* The music of the spheres, in the realistic skin */}
+          <SoundBridge planets={planets} asteroids={asteroids} />
 
           {/* Where the asteroid will go, shown while aiming */}
           <TrajectoryPreview

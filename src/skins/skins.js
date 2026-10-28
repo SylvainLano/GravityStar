@@ -8,13 +8,15 @@
 //     (debris and sunParticles are picked at random between their two colors)
 // Their background is drawn by CSS behind the canvas, in styles.css.
 // Every skin has a trail: how the trails of the bodies are drawn (see Trail.jsx), with the color of the asteroids' trails
-// (the planets' trails take the color of each planet) and, for the candy style, the colors of its dots.
+// (the planets' trails take the color of each planet) and, for the candy style, the colors of its dots,
+// and a sound: the style of its sounds (see audio/sound.js).
 export const skins = [
   {
     id: 'realistic',
     name: 'Realistic',
     swatch: ['#05060a', '#f0a830'],
     trail: { style: 'glow', width: 3, color: '#ffb070' },
+    sound: 'spheres',
   },
   {
     // A homage to the Parodius series of Konami, with original characters (see nekoNebula.js)
@@ -28,6 +30,7 @@ export const skins = [
     debris: ['#ff7ad9', '#ffe066'],
     sunParticles: ['#ffd23f', '#ff9a3c'],
     trail: { style: 'candy', width: 5, color: '#ff7ad9', colors: ['#ff7ad9', '#ffe066', '#7ae8ff', '#ffffff'] },
+    sound: 'neko',
   },
   {
     id: 'anime',
@@ -39,6 +42,7 @@ export const skins = [
     debris: ['#ff7b3a', '#ffe0a0'],
     sunParticles: ['#ffb347', '#fff1c4'],
     trail: { style: 'glow', width: 3, color: '#ffd9a0' },
+    sound: 'anime',
   },
   {
     id: 'comic',
@@ -50,6 +54,7 @@ export const skins = [
     debris: ['#ff7a2e', '#ffd23f'],
     sunParticles: ['#ff8c1a', '#ffe14d'],
     trail: { style: 'ink', width: 5, color: '#ffd23f' },
+    sound: 'comic',
   },
   {
     id: 'arcade',
@@ -62,6 +67,7 @@ export const skins = [
     debris: ['#ff6600', '#ffcc00'],
     sunParticles: ['#ff6600', '#ffff33'],
     trail: { style: 'pixels', width: 3, color: '#ffff33' },
+    sound: 'chip',
   },
   {
     id: 'pastel',
@@ -73,6 +79,7 @@ export const skins = [
     debris: ['#f2c4a0', '#c9d2f0'],
     sunParticles: ['#f6c27a', '#fbe3a6'],
     trail: { style: 'chalk', width: 4, color: '#f4efe6' },
+    sound: 'soft',
   },
   {
     id: 'watercolor',
@@ -84,6 +91,7 @@ export const skins = [
     debris: ['#7c7396', '#c39b7a'],
     sunParticles: ['#f0a35e', '#f6d38c'],
     trail: { style: 'wash', width: 8, color: '#4a6fa5' },
+    sound: 'soft',
   },
 ];
 

@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import StarScene from './StarScene';
 import SkinSelector from './SkinSelector';
+import SoundToggle from './SoundToggle';
+import { defaultVolume, getVolume, isSoundOn, setSoundOn, setVolume } from './audio/sound';
 import { initialSkinId, rememberSkin } from './skins/skins';
 
 // Create a separate component for simulation parameters
-function SimulationParameters({ speed, onSpeedChange, onRandomSystem, asteroidTrail, onAsteroidTrailChange, planetTrail, onPlanetTrailChange, starSize, onStarSizeChange, planetSizeFactor, onPlanetSizeFactorChange, starMass, onStarMassChange, asteroidMass, onAsteroidMassChange, asteroidGravityFactor, onAsteroidGravityFactorChange, planetGravityFactor, onPlanetGravityFactorChange, starIntensity, onStarIntensityChange, launchMode, onLaunchModeChange }) {
+function SimulationParameters({ speed, onSpeedChange, onRandomSystem, volume, onVolumeChange, asteroidTrail, onAsteroidTrailChange, planetTrail, onPlanetTrailChange, starSize, onStarSizeChange, planetSizeFactor, onPlanetSizeFactorChange, starMass, onStarMassChange, asteroidMass, onAsteroidMassChange, asteroidGravityFactor, onAsteroidGravityFactorChange, planetGravityFactor, onPlanetGravityFactorChange, starIntensity, onStarIntensityChange, launchMode, onLaunchModeChange }) {
   // With a mouse, the panel opens when hovered and closes when the mouse leaves it.
   // On touch screens, where nothing is hovered, a tap on its title opens or closes it.
   const [open, setOpen] = useState(false);
@@ -40,6 +42,20 @@ function SimulationParameters({ speed, onSpeedChange, onRandomSystem, asteroidTr
         <button type="button" className="panel-button" onClick={onRandomSystem}>
           New random system (R)
         </button>
+      </div>
+
+      <div className="parameter">
+        <label htmlFor="volume">Volume (M: sound on/off):</label>
+        <input
+          type="range"
+          id="volume"
+          min={0}
+          max={10}
+          step={1}
+          value={volume}
+          onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
+        />
+        <span>{volume}</span>
       </div>
 
       <div className="parameter">
@@ -218,13 +234,37 @@ function App() {
   const [asteroidTrail, setAsteroidTrail] = useState(3); // length of the asteroids' trails: 0 for none, 3 for 4 seconds (see Trail.jsx)
   const [planetTrail, setPlanetTrail] = useState(0); // length of the planets' trails, none by default
   const newRandomSystem = useCallback(() => setSystem((previous) => previous + 1), []);
+  // Sound: always off when the game starts. The volume sliders show 0 while it is off; switching it on brings back
+  // the level (1 to 10) it had before being cut, remembered for the next visits (see audio/sound.js)
+  const [soundOn, setSoundOnState] = useState(false);
+  const [volume, setVolumeState] = useState(() => Math.round(getVolume() * 10));
+  const switchSound = useCallback((on) => {
+    setSoundOn(on); // Within the click, the key press or the slider's move, as browsers require to start the sound
+    setSoundOnState(on);
+  }, []);
+  const toggleSound = useCallback(() => switchSound(!isSoundOn()), []);
+  const changeLevel = useCallback((value) => {
+    setVolumeState(value);
+    setVolume(value / 10);
+  }, []);
+  // Sliding the volume up switches the sound on, sliding it down to 0 cuts it: it will then come back at the default level
+  const changeVolume = useCallback((value) => {
+    if (value === 0) {
+      changeLevel(Math.round(defaultVolume * 10));
+      switchSound(false);
+      return;
+    }
+    changeLevel(value);
+    if (!isSoundOn()) switchSound(true);
+  }, []);
 
   const changeSkin = useCallback((id) => {
     setSkinId(id);
     rememberSkin(id);
   }, []);
 
-  // The space bar pauses the game, and resumes it at the speed it had before. The R key starts a new random system.
+  // The space bar pauses the game, and resumes it at the speed it had before. The R key starts a new random system,
+  // the M key switches the sound on and off.
   const lastSpeed = useRef(speed);
   useEffect(() => {
     if (speed > 0) lastSpeed.current = speed;
@@ -233,6 +273,7 @@ function App() {
     const onKeyDown = (e) => {
       if (e.ctrlKey || e.metaKey || e.altKey || e.target.closest?.('input[type="text"], select, textarea')) return;
       if ((e.key === 'r' || e.key === 'R') && !e.repeat) newRandomSystem();
+      if ((e.key === 'm' || e.key === 'M') && !e.repeat) toggleSound();
       if (e.code !== 'Space') return;
       // Also keeps the space bar from pressing the focused button (a skin, the settings' title)
       e.preventDefault();
@@ -263,6 +304,8 @@ function App() {
         speed={speed}
         onSpeedChange={setSpeed}
         onRandomSystem={newRandomSystem}
+        volume={soundOn ? volume : 0}
+        onVolumeChange={changeVolume}
         asteroidTrail={asteroidTrail}
         onAsteroidTrailChange={setAsteroidTrail}
         planetTrail={planetTrail}
@@ -284,7 +327,10 @@ function App() {
         launchMode={launchMode}
         onLaunchModeChange={setLaunchMode}
       />
-      <SkinSelector skinId={skinId} onSkinChange={changeSkin} />
+      <div className="top-bar">
+        <SoundToggle on={soundOn} onToggle={toggleSound} volume={soundOn ? volume : 0} onVolumeChange={changeVolume} />
+        <SkinSelector skinId={skinId} onSkinChange={changeSkin} />
+      </div>
       {/* Shown during the pause, even with the settings closed: a tap on it resumes the game too, for touch screens */}
       {speed === 0 && (
         <button type="button" className="paused" onClick={() => setSpeed(lastSpeed.current)}>

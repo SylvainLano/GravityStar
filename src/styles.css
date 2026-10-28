@@ -296,11 +296,65 @@ body {
   opacity: 1;
 }
 
-/* Skin selector, always visible in the top right corner */
-.skin-selector {
+/* Sound button and skin selector, always visible in the top right corner */
+.top-bar {
   position: absolute;
   top: 16px;
   right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* The volume slider comes after the speaker button for the keyboard, but on its left on screen,
+   so that it unrolls without moving the button under the pointer */
+.sound-control {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+}
+
+.volume-slider {
+  width: 0;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+  accent-color: var(--accent);
+  cursor: pointer;
+  /* Fades out, then rolls up: while narrow, its thumb would spill over the button */
+  transition: opacity 0.1s ease, width 0.2s ease 0.1s, margin 0.2s ease 0.1s;
+}
+
+/* Shown when hovered, or when focused with the keyboard (not after a click, which would keep it open once the mouse leaves) */
+.sound-control:hover .volume-slider,
+.sound-control:has(:focus-visible) .volume-slider {
+  width: 80px;
+  margin-right: 8px;
+  opacity: 1;
+  pointer-events: auto;
+  transition: width 0.2s ease, margin 0.2s ease, opacity 0.1s ease 0.15s;
+}
+
+.sound-toggle {
+  display: flex;
+  padding: 2px;
+  border: none;
+  background: none;
+  color: var(--ui-text);
+  opacity: 0.6;
+  cursor: pointer;
+}
+
+.sound-toggle[aria-pressed='true'] {
+  opacity: 1;
+}
+
+.sound-toggle:focus-visible {
+  outline: 2px solid #ffd23f;
+  outline-offset: 2px;
+}
+
+.skin-selector {
   display: flex;
   align-items: center;
   gap: 8px;
