@@ -1,12 +1,23 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import StarScene from './StarScene';
+import SkinSelector from './SkinSelector';
+import { initialSkinId, rememberSkin } from './skins/skins';
 
 // Create a separate component for simulation parameters
 function SimulationParameters({ starSize, onStarSizeChange, planetSizeFactor, onPlanetSizeFactorChange, starMass, onStarMassChange, asteroidMass, onAsteroidMassChange, asteroidGravityFactor, onAsteroidGravityFactorChange, planetGravityFactor, onPlanetGravityFactorChange, starIntensity, onStarIntensityChange, launchMode, onLaunchModeChange }) {
+  // With a mouse, the panel opens when hovered and closes when the mouse leaves it.
+  // On touch screens, where nothing is hovered, a tap on its title opens or closes it.
+  const [open, setOpen] = useState(false);
+
   return (
-    <div className="simulation-parameters">
+    <div
+      className={open ? 'simulation-parameters open' : 'simulation-parameters'}
+      onPointerLeave={(e) => { if (e.pointerType === 'mouse') setOpen(false); }}
+    >
       <div className="title">
-        <label>Change the settings here</label>
+        <button type="button" className="title-toggle" aria-expanded={open} onClick={() => setOpen((previous) => !previous)}>
+          Change the settings here
+        </button>
         <br />
       </div>
 
@@ -152,9 +163,15 @@ function App() {
   const [planetGravityFactor, setPlanetGravityFactor] = useState(100); // increase the gravity of the planets toward asteroids
   const [starIntensity, setStarIntensity] = useState(5); // increase the luminosity of the star
   const [launchMode, setLaunchMode] = useState('screen'); // asteroids are created facing the camera ('screen') or in the planets' plane ('orbital')
+  const [skinId, setSkinId] = useState(initialSkinId); // the look of the game, see src/skins
+
+  const changeSkin = useCallback((id) => {
+    setSkinId(id);
+    rememberSkin(id);
+  }, []);
 
   return (
-    <div className="App">
+    <div className="App" data-skin={skinId}>
       <StarScene
         starSize={starSize}
         planetSizeFactor={planetSizeFactor}
@@ -183,6 +200,7 @@ function App() {
         launchMode={launchMode}
         onLaunchModeChange={setLaunchMode}
       />
+      <SkinSelector skinId={skinId} onSkinChange={changeSkin} />
       {/* Credits required by the licenses of the 3D model and of the textures */}
       <div className="credits">
         <a href="https://sketchfab.com/3d-models/meteorite-0a503e5bec784cbc9082e2f6b2d9f701" target="_blank" rel="noopener noreferrer">"Meteorite"</a>

@@ -33,11 +33,14 @@ body {
   flex-direction: column;
 }
 
-.simulation-parameters:hover {
+/* The panel opens when hovered, or when opened with a click or a tap on its title */
+.simulation-parameters:hover,
+.simulation-parameters.open {
   background-color: rgba(255, 255, 255, 0.8);
 }
 
-.simulation-parameters:hover * {
+.simulation-parameters:hover *,
+.simulation-parameters.open * {
   transition: background-color 0.3s ease, opacity 0.3s ease;
 }
 
@@ -45,7 +48,8 @@ body {
   display: none;
 }
 
-.simulation-parameters:hover .parameter {
+.simulation-parameters:hover .parameter,
+.simulation-parameters.open .parameter {
   display: inline;
   opacity: 0.8;
 }
@@ -55,9 +59,19 @@ body {
   text-align:center;
 }
 
-.simulation-parameters:hover .title {
+.simulation-parameters:hover .title,
+.simulation-parameters.open .title {
   color:#000;
   opacity: 0.8;
+}
+
+.title-toggle {
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
 }
 
 .simulation-parameters label, .simulation-parameters span {
@@ -121,6 +135,38 @@ body {
 
 .switch-option.active {
   opacity: 1;
+}
+
+/* Skin selector, always visible in the top right corner */
+.skin-selector {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Space Mono', monospace;
+  font-size: 9pt;
+  color: #ddd;
+}
+
+.skin-swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid #ddd;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.skin-swatch.active {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.skin-swatch:focus-visible {
+  outline: 2px solid #ffd23f;
+  outline-offset: 2px;
 }
 
 /* Credits for the 3D model and the textures, discreet in the bottom right corner */

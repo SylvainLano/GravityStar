@@ -22,6 +22,7 @@
   },
   "scripts": {
     "dev": "vite",
+    "lab": "vite --open /GravityStar/lab.html",
     "build": "vite build",
     "preview": "vite preview",
     "predeploy": "npm run build",
