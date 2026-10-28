@@ -55,7 +55,8 @@ const StarParticle = ({ startPosition, starSize, starIntensity }) => {
     return (
       <mesh position={startPosition} ref={particleRef}>
         <sphereGeometry args={[0.01, 16, 16]} />
-        <meshBasicMaterial color={initialColor} />
+        {/* The colors of the stylized skins are shown exactly, without the tone mapping of the renderer */}
+        <meshBasicMaterial color={initialColor} toneMapped={!palette} />
       </mesh>
     );
 }

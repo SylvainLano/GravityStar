@@ -3,11 +3,14 @@ import React, { useRef, useLayoutEffect, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import ExplosionParticle from './ExplosionParticle';
 import { useSimulation } from './SimulationClock';
+import { useSkin } from './skins/SkinContext';
+import { ExplosionEffect } from './skins/ExplosionEffects';
 
 // timestamp: when the explosion started, in the simulated time (see SimulationClock), so that it stops during a pause
 const Explosion = ({ index, lights, position, timestamp, terminateExplosion }) => {
   const explosionRef = useRef();
   const simulation = useSimulation();
+  const skin = useSkin();
   const explosionDuration = 20000;
   const maxLightIntensity = 3 * Math.PI; // Physical lights need a factor PI to match the former legacy lights
   const flickerSpeed = 0.002;
@@ -94,7 +97,13 @@ const Explosion = ({ index, lights, position, timestamp, terminateExplosion }) =
     }
   });
 
-  return <group ref={explosionRef}>{particles}</group>;
+  return (
+    <group ref={explosionRef}>
+      {particles}
+      {/* The stylized skins add their own effect (onomatopoeia, sparks...) */}
+      {skin.style && <ExplosionEffect style={skin.style} position={position} timestamp={timestamp} />}
+    </group>
+  );
 };
 
 export default Explosion;

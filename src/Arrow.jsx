@@ -37,7 +37,8 @@ const Arrow = ({ aim, referenceDistance }) => {
     // Drawn over the rest of the scene, as when it had its own canvas
     <mesh ref={arrowRef} visible={false} renderOrder={1}>
       <coneGeometry args={[0.01, 1, 8]} />
-      <meshBasicMaterial color={skin.arrow ?? 'red'} depthTest={false} />
+      {/* The colors of the stylized skins are shown exactly, without the tone mapping of the renderer */}
+      <meshBasicMaterial color={skin.arrow ?? 'red'} toneMapped={!skin.arrow} depthTest={false} />
     </mesh>
   );
 };

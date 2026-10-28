@@ -5,6 +5,8 @@ It was first created in ten days with React Three Fiber.
 
 ## How to play
 
+Each game starts with the planets at random places on their orbits (the farthest ones behind the star, where they can be seen).
+
 - **Launch an asteroid**: press anywhere in the scene to create an asteroid under the pointer, drag to aim (an arrow shows the direction and strength), then release to throw it. It works with a mouse, a finger or a pen.
 - **Launch mode**, in the settings:
   - *Free Throw* (default): asteroids are created facing the camera and get a small push towards the star.
@@ -15,16 +17,16 @@ It was first created in ten days with React Three Fiber.
 
 ## Skins
 
-Skins change the look of the game, never its physics.
+Skins change the look of the game, never its physics. Each one also has its own explosions and its own colors for the settings.
 
-| Skin | Look |
-| --- | --- |
-| Realistic | Photo textures and physical lighting (default) |
-| Comic | Comic book: vivid flat colors, ink outlines, violet shadows and pen hatching |
-| Pastel | Soft washes on paper, cool shadows and pigment grain |
-| Arcade | Big pixels, a limited palette, dithering and scanlines |
-| Neko Nebula | Japanese shoot'em up madness: the planets become characters (a tabby cat, an octopus, a diva…) around a star in sunglasses |
-| Anime | Hard shadows with a warm band, manga screentone and lens glare |
+| Skin | Look | Explosions |
+| --- | --- | --- |
+| Realistic | Photo textures and physical lighting (default) | Glowing debris |
+| Comic | Comic book: vivid flat colors, ink outlines, violet shadows and pen hatching | Onomatopoeias: BOOM!, KRAK!, POW!… |
+| Pastel | Soft washes on paper, cool shadows and pigment grain | Splashes of paint |
+| Arcade | Big pixels, a limited palette, dithering and scanlines | Blinking pixel sparks |
+| Neko Nebula | Japanese shoot'em up madness: the planets become characters (a tabby cat, an octopus, a diva…) around a star in sunglasses | Stars and hearts |
+| Anime | Hard shadows with a warm band, manga screentone and lens glare | Impact flash with speed lines |
 
 ### Neko Nebula, a homage to Parodius
 
@@ -54,6 +56,7 @@ The **style lab** (`lab.html`) is a development tool to design and compare the s
 - `src/skins/skins.js`: the list of skins, with their colors
 - `src/skins/styleMaterials.js`: the shaders of the stylized skins; `looks.js` makes the materials of each element with them
 - `src/skins/nekoNebula.js`, `src/skins/NekoNebulaCharacters.jsx`: the materials, pixel art faces and characters of Neko Nebula
+- `src/skins/ExplosionEffects.jsx`: the explosions of the stylized skins; their interface colors are in `src/styles.css`
 - `src/skins/SkinContext.jsx`: gives the current skin to the scene, and creates the materials of a skin the first time it is chosen
 - `src/lab/`: the style lab
 

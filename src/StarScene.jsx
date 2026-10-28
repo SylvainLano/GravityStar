@@ -44,6 +44,45 @@ const dragPoint = new THREE.Vector3();
 const directionToStar = new THREE.Vector3();
 const projection = new THREE.Vector3();
 
+/* The planets
+    velocity is 10 divided by a hundred times the square root of days around the sun
+    size is the square root of diameter divided by 2000
+    distance is choosen in order to see all planets on the scene (close to AU*8/10 for inner planets), plus the star's size
+    rotation is 0.01 divided by the number of earth days for the planet to rotate on itself
+    mass is the ratio to earth mass
+    startArc: the angles between which the planet starts, at random, in degrees (0 is on the right of the star, 90 behind it):
+      the outer planets start behind the star, where the camera sees the farthest */
+const planetData = [
+  { name: 'mercury', size: 0.0349, distance: 0.8, velocity: 10 / 938, rotation: 0.00017, planetTexture: './img/2k_mercury.jpg', mass: 0.055, startArc: [0, 360] },
+  { name: 'venus', size: 0.055, distance: 1.44, velocity: 10 / 1559, rotation: 0.000041, planetTexture: './img/2k_venus_atmosphere.jpg', mass: 0.815, startArc: [0, 360] },
+  { name: 'earth', size: 0.05644, distance: 2, velocity: 10 / 1910, rotation: 0.01, planetTexture: './img/2k_earth_daymap.jpg', mass: 1, startArc: [0, 360] },
+  { name: 'mars', size: 0.0412, distance: 3.04, velocity: 10 / 2621, rotation: 0.01, planetTexture: './img/2k_mars.jpg', mass: 0.107, startArc: [0, 360] },
+  { name: 'jupiter', size: 0.1889, distance: 6.2, velocity: 10 / 6583, rotation: 0.024, planetTexture: './img/2k_jupiter.jpg', mass: 316, startArc: [20, 160] },
+  { name: 'saturn', size: 0.1706, distance: 9.5, velocity: 10 / 10373, rotation: 0.0229, planetTexture: './img/2k_saturn.jpg', mass: 95, startArc: [40, 140] },
+  { name: 'uranus', size: 0.1126, distance: 13, velocity: 10 / 17517, rotation: 0.0141, planetTexture: './img/2k_uranus.jpg', mass: 14.53, startArc: [55, 125] },
+  { name: 'neptune', size: 0.1105, distance: 17, velocity: 10 / 24500, rotation: 0.015, planetTexture: './img/2k_neptune.jpg', mass: 17.15, startArc: [60, 120] },
+];
+
+// Places each planet at a random angle of its start arc, on its circular orbit, with its velocity along the orbit
+function createPlanets(starSize) {
+  return planetData.map((planet, i) => {
+    const [from, to] = planet.startArc;
+    const angle = THREE.MathUtils.degToRad(from + Math.random() * (to - from));
+    const radius = planet.distance + starSize;
+    return {
+      index: i + 1,
+      name: planet.name,
+      size: planet.size,
+      position: new THREE.Vector3(radius * Math.cos(angle), 0, -radius * Math.sin(angle)),
+      velocity: new THREE.Vector3(-Math.sin(angle), 0, -Math.cos(angle)).multiplyScalar(planet.velocity),
+      rotation: { x: 0, y: planet.rotation, z: 0 },
+      planetTexture: planet.planetTexture,
+      mass: planet.mass,
+      shouldCorrectOrbit: true,
+    };
+  });
+}
+
 function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroidGravityFactor, planetGravityFactor, starIntensity, launchMode, skinId, speed}) {
 
   const sceneRef = useRef();
@@ -56,102 +95,8 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
   // Identifiers of asteroids and explosions: a counter outside React state never hands out the same one twice
   const nextKey = useRef(0);
 
-  /* Creating a set of Planets 
-      velocity is 10 divided by a hundred times the square root of days around the sun
-      size is the square root of diameter divided by 2000
-      distance is choosen in order to see all planets on the scene (close to AU*8/10 for inner planets)
-      rotation is 0.01 divided by the number of earth days for the planet to rotate on itself
-      mass is the ratio to earth mass */
-  const [planets, setPlanets] = useState([
-    {
-      index: 1,
-      name: "mercury",
-      size: 0.0349,
-      position: new THREE.Vector3((0.8+starSize), 0, 0),
-      velocity: new THREE.Vector3(0, 0, -(10 / 938)),
-      rotation: { x: 0, y: 0.00017, z: 0 },
-      planetTexture: './img/2k_mercury.jpg',
-      mass: 0.055,
-      shouldCorrectOrbit: true
-    },
-    {
-      index: 2,
-      name: "venus",
-      size: 0.055,
-      position: new THREE.Vector3((1.44+starSize), 0, 0),
-      velocity: new THREE.Vector3(0, 0, -(10 / 1559)),
-      rotation: { x: 0, y: 0.000041, z: 0 },
-      planetTexture: './img/2k_venus_atmosphere.jpg',
-      mass: 0.815,
-      shouldCorrectOrbit: true
-    },
-    {
-      index: 3,
-      name: "earth",
-      size: 0.05644,
-      position: new THREE.Vector3((2+starSize), 0, 0),
-      velocity: new THREE.Vector3(0, 0, -(10 / 1910)),
-      rotation: { x: 0, y: 0.01, z: 0 },
-      planetTexture: './img/2k_earth_daymap.jpg',
-      mass: 1,
-      shouldCorrectOrbit: true
-    },
-    {
-      index: 4,
-      name: "mars",
-      size: 0.0412,
-      position: new THREE.Vector3((3.04+starSize), 0, 0),
-      velocity: new THREE.Vector3(0, 0, -(10 / 2621)),
-      rotation: { x: 0, y: 0.01, z: 0 },
-      planetTexture: './img/2k_mars.jpg',
-      mass: 0.107,
-      shouldCorrectOrbit: true
-    },
-    {
-      index: 5,
-      name: "jupiter",
-      size: 0.1889,
-      position: new THREE.Vector3((6.2+starSize), 0, 0),
-      velocity: new THREE.Vector3(0, 0, -(10 / 6583)),
-      rotation: { x: 0, y: 0.024, z: 0 },
-      planetTexture: './img/2k_jupiter.jpg',
-      mass: 316,
-      shouldCorrectOrbit: true
-    },
-    {
-      index: 6,
-      name: "saturn",
-      size: 0.1706,
-      position: new THREE.Vector3((9.5+starSize), 0, 0),
-      velocity: new THREE.Vector3(0, 0, -(10 / 10373)),
-      rotation: { x: 0, y: 0.0229, z: 0 },
-      planetTexture: './img/2k_saturn.jpg',
-      mass: 95,
-      shouldCorrectOrbit: true
-    },
-    {
-      index: 7,
-      name: "uranus",
-      size: 0.1126,
-      position: new THREE.Vector3((13+starSize), 0, 0),
-      velocity: new THREE.Vector3(0, 0, -(10 / 17517)),
-      rotation: { x: 0, y: 0.0141, z: 0 },
-      planetTexture: './img/2k_uranus.jpg',
-      mass: 14.53,
-      shouldCorrectOrbit: true
-    },
-    {
-      index: 8,
-      name: "neptune",
-      size: 0.1105,
-      position: new THREE.Vector3((17+starSize), 0, 0),
-      velocity: new THREE.Vector3(0, 0, -(10 / 24500)),
-      rotation: { x: 0, y: 0.015, z: 0 },
-      planetTexture: './img/2k_neptune.jpg',
-      mass: 17.15,
-      shouldCorrectOrbit: true
-    }
-  ]);
+  // The planets, each at a random angle of its orbit (see createPlanets)
+  const [planets, setPlanets] = useState(() => createPlanets(starSize));
 
   // Create a spotlight where the camera is to see the asteroids to be launched
   // (created once: a new light on every render made React replace it each time)

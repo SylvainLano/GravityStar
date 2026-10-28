@@ -31,6 +31,7 @@ const ExplosionParticle = ({ position, velocity, timestamp }) => {
         color: new THREE.Color(from).lerp(new THREE.Color(to), Math.random()),
         transparent: true,
         opacity: 1.0,
+        toneMapped: false, // The exact colors of the skin, which the tone mapping of the renderer would wash out
       });
     }
     return new THREE.MeshStandardMaterial({

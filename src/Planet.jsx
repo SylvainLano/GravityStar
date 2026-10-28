@@ -122,8 +122,6 @@ const Planet = ({ index, name, size, position, velocity, rotation, onStarCollisi
       // Update the planet's position based on the updated velocity
       position.addScaledVector(velocity, steps);
 
-      planetRef.current.position.copy(position);
-
       // Apply self-rotation (spin)
       spinRef.current.rotation.x += rotation.x * steps;
       spinRef.current.rotation.y += rotation.y * steps;
@@ -140,6 +138,8 @@ const Planet = ({ index, name, size, position, velocity, rotation, onStarCollisi
   useFrame(() => {
     const { substeps, stepSize } = simulation.current;
     for (let i = 0; i < substeps; i++) advance(stepSize);
+    // Also when nothing moves, so that a game paused from the start shows the planets where they are
+    planetRef.current.position.copy(position);
   });
 
   const radius = size * planetSizeFactor;

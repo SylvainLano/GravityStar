@@ -17,21 +17,101 @@ body {
   overflow: hidden; /* Prevent page scrolling */
 }
 
-/* Backgrounds of the skins, behind the transparent canvas */
-.App[data-skin='comic'] {
-  background-color: #252c70; /* Ultramarine rather than black, so that the ink outlines stand out against the sky */
+/* Colors and shapes of the interface (settings panel, skin selector, pause), as in the realistic skin.
+   Each skin redefines them below, with the background drawn behind the transparent canvas. */
+.App {
+  --ui-text: #ddd; /* Text over the scene: skin selector */
+  --ui-border: #ddd;
+  --ui-border-width: 1px;
+  --ui-radius: 5px;
+  --ui-shadow: none;
+  --panel-bg: rgba(255, 255, 255, 0.1); /* Closed settings panel and pause indicator */
+  --panel-title: #ddd;
+  --panel-bg-open: rgba(255, 255, 255, 0.8);
+  --panel-text-open: #000;
+  --swatch-active: #fff;
+  --accent: auto; /* Sliders */
 }
 
+/* Comic: caption boxes of a comic book, inked, on an ultramarine sky (rather than black, so that the ink outlines stand out) */
+.App[data-skin='comic'] {
+  background-color: #252c70;
+  --ui-text: #fff4c2;
+  --ui-border: #0a0820;
+  --ui-border-width: 3px;
+  --ui-radius: 2px;
+  --ui-shadow: 4px 4px 0 #0a0820;
+  --panel-bg: #ffe14d;
+  --panel-title: #0a0820;
+  --panel-bg-open: #fff4c2;
+  --panel-text-open: #0a0820;
+  --swatch-active: #ffe14d;
+  --accent: #ff4b3e;
+}
+
+/* Anime: dark glass with a warm edge */
 .App[data-skin='anime'] {
   background-color: #050a1f;
+  --ui-text: #e8ecff;
+  --ui-border: rgba(255, 138, 76, 0.7);
+  --ui-radius: 3px;
+  --panel-bg: rgba(5, 10, 31, 0.45);
+  --panel-title: #e8ecff;
+  --panel-bg-open: rgba(5, 10, 31, 0.88);
+  --panel-text-open: #e8ecff;
+  --swatch-active: #ff8a4c;
+  --accent: #ff8a4c;
 }
 
+/* Neko Nebula: round candy-colored bubbles */
 .App[data-skin='neko-nebula'] {
   background-color: #120a3a;
+  --ui-text: #fff;
+  --ui-border: #ff7ad9;
+  --ui-border-width: 2px;
+  --ui-radius: 16px;
+  --ui-shadow: 0 3px 0 #2a0f3a;
+  --panel-bg: rgba(42, 15, 58, 0.6);
+  --panel-title: #ffe066;
+  --panel-bg-open: rgba(42, 15, 58, 0.92);
+  --panel-text-open: #fff;
+  --swatch-active: #ffe066;
+  --accent: #ff7ad9;
 }
 
-/* Pastel: paper */
+/* Arcade: square neon frames */
+.App[data-skin='arcade'] {
+  background-color: #000;
+  --ui-text: #fff;
+  --ui-border: #ff3fa4;
+  --ui-border-width: 2px;
+  --ui-radius: 0;
+  --ui-shadow: 0 0 10px rgba(255, 63, 164, 0.6);
+  --panel-bg: rgba(0, 0, 0, 0.6);
+  --panel-title: #fff;
+  --panel-bg-open: rgba(0, 0, 0, 0.9);
+  --panel-text-open: #fff;
+  --swatch-active: #ff3fa4;
+  --accent: #ff3fa4;
+}
+
+.App[data-skin='arcade'] .title-toggle,
+.App[data-skin='arcade'] .paused {
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Pastel: dark ink on paper */
 .App[data-skin='pastel'] {
+  --ui-text: #3e4470;
+  --ui-border: #3e4470;
+  --ui-radius: 12px;
+  --panel-bg: rgba(255, 250, 240, 0.4);
+  --panel-title: #3e4470;
+  --panel-bg-open: rgba(255, 250, 240, 0.85);
+  --panel-text-open: #3e4470;
+  --swatch-active: #3e4470;
+  --accent: #c4574f;
   background-color: #efe6d3;
   background-image:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.42 0 0 0 0 0.35 0 0 0 0 0.25 0.5 0 0 0 -0.15'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
@@ -60,10 +140,11 @@ body {
   top: 0px;
   left: 0px;
   padding: 20px 30px;
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: var(--panel-bg);
   transition: background-color 0.3s ease;
-  border: 1px solid #ddd;
-  border-radius: 5px;
+  border: var(--ui-border-width) solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  box-shadow: var(--ui-shadow);
   font-family: 'Space Mono', monospace;
   font-size: 10pt;
   display: flex;
@@ -73,7 +154,12 @@ body {
 /* The panel opens when hovered, or when opened with a click or a tap on its title */
 .simulation-parameters:hover,
 .simulation-parameters.open {
-  background-color: rgba(255, 255, 255, 0.8);
+  background-color: var(--panel-bg-open);
+  color: var(--panel-text-open);
+}
+
+.simulation-parameters input[type='range'] {
+  accent-color: var(--accent);
 }
 
 .simulation-parameters:hover *,
@@ -92,13 +178,13 @@ body {
 }
 
 .simulation-parameters .title {
-  color:#ddd;
+  color: var(--panel-title);
   text-align:center;
 }
 
 .simulation-parameters:hover .title,
 .simulation-parameters.open .title {
-  color:#000;
+  color: var(--panel-text-open);
   opacity: 0.8;
 }
 
@@ -160,7 +246,7 @@ body {
 }
 
 .switch input:focus-visible + .switch-track {
-  outline: 2px solid #333;
+  outline: 2px solid var(--panel-text-open);
   outline-offset: 2px;
 }
 
@@ -184,20 +270,20 @@ body {
   gap: 8px;
   font-family: 'Space Mono', monospace;
   font-size: 9pt;
-  color: #ddd;
+  color: var(--ui-text);
 }
 
 .skin-swatch {
   width: 22px;
   height: 22px;
   padding: 0;
-  border: 1px solid #ddd;
+  border: 1px solid var(--ui-border);
   border-radius: 50%;
   cursor: pointer;
 }
 
 .skin-swatch.active {
-  outline: 2px solid #fff;
+  outline: 2px solid var(--swatch-active);
   outline-offset: 2px;
 }
 
@@ -206,32 +292,18 @@ body {
   outline-offset: 2px;
 }
 
-/* Dark ink on the light paper of the pastel skin */
-.App[data-skin='pastel'] .simulation-parameters .title,
-.App[data-skin='pastel'] .skin-selector {
-  color: #3e4470;
-}
-
-.App[data-skin='pastel'] .simulation-parameters,
-.App[data-skin='pastel'] .skin-swatch {
-  border-color: #3e4470;
-}
-
-.App[data-skin='pastel'] .skin-swatch.active {
-  outline-color: #3e4470;
-}
-
-/* Pause indicator, at the top center */
+/* Pause indicator, at the top center, in the colors of the closed settings panel */
 .paused {
   position: absolute;
   top: 16px;
   left: 50%;
   transform: translateX(-50%);
   padding: 4px 12px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-  background-color: rgba(0, 0, 0, 0.5);
-  color: #ddd;
+  border: var(--ui-border-width) solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  box-shadow: var(--ui-shadow);
+  background-color: var(--panel-bg);
+  color: var(--panel-title);
   font-family: 'Space Mono', monospace;
   font-size: 9pt;
   cursor: pointer;
@@ -245,12 +317,6 @@ body {
     right: 16px;
     transform: none;
   }
-}
-
-.App[data-skin='pastel'] .paused {
-  border-color: #3e4470;
-  background-color: rgba(239, 230, 211, 0.7);
-  color: #3e4470;
 }
 
 /* Credits for the 3D model and the textures, discreet in the bottom right corner */

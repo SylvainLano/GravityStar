@@ -62,8 +62,6 @@ const Asteroid = ({ index, position, velocity, angularVelocity, active, moving, 
   const advance = (steps) => {
     position.addScaledVector(velocity, steps);
 
-    asteroidRef.current.position.copy(position);
-
     // Calculate the distance to the star
     const distanceToStar = position.distanceTo(starPosition);
 
@@ -156,17 +154,16 @@ const Asteroid = ({ index, position, velocity, angularVelocity, active, moving, 
   };
 
   useFrame(() => {
-    // Update asteroid position based on velocity and active state
-    if (isActive && moving) {
+    if (!isActive) return;
+    // Update asteroid position based on velocity
+    if (moving) {
       const { substeps, stepSize } = simulation.current;
       for (let i = 0; i < substeps; i++) {
         if (!advance(stepSize)) break;
       }
-    } else if (isActive) {
-      asteroidRef.current.position.x = position.x;
-      asteroidRef.current.position.y = position.y;
-      asteroidRef.current.position.z = position.z;
     }
+    // Also while it waits to be launched or the game is paused (its model is replaced when the skin changes)
+    asteroidRef.current.position.copy(position);
   });
 
   return (
