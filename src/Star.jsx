@@ -2,6 +2,8 @@ import React, { useRef, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
+import { frameScale } from './physics';
+
 const Star = ({ size, starIntensity }) => {
   const starRef = useRef();
   const [starMaterial, setStarMaterial] = useState(
@@ -49,9 +51,9 @@ const Star = ({ size, starIntensity }) => {
     return texture;
   };
 
-  useFrame(() => {
-    // Rotate the star
-    starRef.current.rotation.y += 0.001;
+  useFrame((state, delta) => {
+    // Rotate the star (by 0.001 per 60 fps step)
+    starRef.current.rotation.y += 0.001 * frameScale(delta);
   });
 
   return (

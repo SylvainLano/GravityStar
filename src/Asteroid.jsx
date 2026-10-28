@@ -3,7 +3,7 @@ import { useFrame, useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-import { calculateGravitationalForce } from './StarScene';
+import { calculateGravitationalForce, frameScale } from './physics';
 
 const asteroidModelUrl = './models/meteorite/meteorite.glb';
 const asteroidScale = 0.02;
@@ -51,10 +51,13 @@ const Asteroid = ({ index, position, velocity, angularVelocity, active, moving, 
     return data;
   }, [index]);
 
-  useFrame(() => {
+  useFrame((state, delta) => {
+    // Number of 60 fps steps to simulate for this frame
+    const steps = frameScale(delta);
+
     // Update asteroid position based on velocity and active state
     if (isActive && moving) {
-      position.add(velocity);
+      position.addScaledVector(velocity, steps);
 
       asteroidRef.current.position.copy(position);
 
@@ -67,10 +70,10 @@ const Asteroid = ({ index, position, velocity, angularVelocity, active, moving, 
         const gravitationalForce = calculateGravitationalForce(starMass, position, starPosition, gravitationalForceVector);
 
         // Update velocity by adding gravitational force
-        velocity.add(gravitationalForce.multiplyScalar(asteroidGravityFactor));
+        velocity.addScaledVector(gravitationalForce, asteroidGravityFactor * steps);
 
         // Rotate the asteroid directly based on angular velocity: going through React state would re-render it on every frame
-        deltaRotation.setFromEuler(deltaEuler.set(angularVelocity.x, angularVelocity.y, angularVelocity.z, 'XYZ'));
+        deltaRotation.setFromEuler(deltaEuler.set(angularVelocity.x * steps, angularVelocity.y * steps, angularVelocity.z * steps, 'XYZ'));
         asteroidRef.current.quaternion.premultiply(deltaRotation);
 
         if (distanceToStar <= starSize) {
@@ -82,7 +85,7 @@ const Asteroid = ({ index, position, velocity, angularVelocity, active, moving, 
             const otherAsteroid = asteroids.find((asteroid) => asteroid.index === neighbor.index);
             if ( otherAsteroid !== undefined ) {
               // Decrease framesUntilCheck for each neighbor
-              neighbor.framesUntilCheck = Math.max(0, neighbor.framesUntilCheck - 1);
+              neighbor.framesUntilCheck = Math.max(0, neighbor.framesUntilCheck - steps);
 
               // Check if it's time to perform the distance check
               if (neighbor.framesUntilCheck === 0) {
@@ -103,7 +106,7 @@ const Asteroid = ({ index, position, velocity, angularVelocity, active, moving, 
             const planet = planets.find((planet) => planet.index === neighbor.index);
             if ( planet !== undefined ) {
               // Decrease framesUntilCheck for each neighbor
-              neighbor.framesUntilCheck = Math.max(0, neighbor.framesUntilCheck - 1);
+              neighbor.framesUntilCheck = Math.max(0, neighbor.framesUntilCheck - steps);
 
               // Check if it's time to perform the distance check
               if (neighbor.framesUntilCheck === 0) {
@@ -127,6 +130,7 @@ const Asteroid = ({ index, position, velocity, angularVelocity, active, moving, 
                   const planetGravitationalForce = calculateGravitationalForce(planet.mass, position, planet.position, gravitationalForceVector);
                   
                   // Update velocity by adding gravitational force
+                  // (once per check rather than per frame: checks happen at the same pace whatever the frame rate)
                   velocity.add(planetGravitationalForce.multiplyScalar(asteroidGravityFactor*planetGravityFactor));
 
                   let framesToWait = Math.max(1, Math.round(distance/(velocity.length()+planet.velocity.length())));

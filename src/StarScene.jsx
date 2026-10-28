@@ -10,23 +10,6 @@ import Arrow from './Arrow';
 import Planet from './Planet';
 import Explosion from './Explosion';
 
-export function calculateGravitationalForce(objetMass, position, objectPosition, target = new THREE.Vector3()) {
-  const gravitationalConstant = 6.674 * Math.pow(10, -11); // Adjusted gravitational constant
-
-  // Calculate the vector from the planet to the star (sun)
-  const distanceVector = target; // Written into target, so callers can reuse a vector instead of creating one on every frame
-  distanceVector.subVectors(position, objectPosition); // Assuming the star is at the origin
-
-  // Calculate the magnitude of the force
-  const distanceSquared = distanceVector.lengthSq();
-  const forceMagnitude = (gravitationalConstant * objetMass) / distanceSquared;
-
-  // Calculate the force vector (directional)
-  const forceVector = distanceVector.normalize().multiplyScalar(-forceMagnitude);
-
-  return forceVector;
-}
-
 // Keep loaded files in memory (the sun texture is reloaded when its luminosity changes)
 THREE.Cache.enabled = true;
 

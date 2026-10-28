@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 
+import { frameScale } from './physics';
+
 const StarParticle = ({ startPosition, starSize, starIntensity }) => {
 
     const particleRef = useRef();
@@ -17,10 +19,10 @@ const StarParticle = ({ startPosition, starSize, starIntensity }) => {
     // Generate a random color for the particle (the next ones are set directly on the material)
     const [initialColor] = useState(new THREE.Color(adjust, Math.random()*adjust*0.8+0.2*adjust, 0.2*adjust));
 
-    useFrame(() => {
-      // Move the particle directly: going through React state would re-render it on every frame
+    useFrame((state, delta) => {
+      // Move the particle directly (by direction per 60 fps step): going through React state would re-render it on every frame
       const position = particleRef.current.position;
-      position.add(direction);
+      position.addScaledVector(direction, frameScale(delta));
 
       if (position.distanceTo(startPosition) > maxDistance.current) {
         // Change the direction vector when the particle reaches the maximum distance

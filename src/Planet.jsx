@@ -2,7 +2,7 @@ import React, { useRef, useMemo } from 'react';
 import { useFrame, useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
 
-import { calculateGravitationalForce } from './StarScene';
+import { calculateGravitationalForce, frameScale } from './physics';
 
 // Reused on every frame by all planets, to avoid creating new objects
 const gravitationalForceVector = new THREE.Vector3();
@@ -25,7 +25,10 @@ const Planet = ({ index, size, position, velocity, rotation, onStarCollision, pl
     return data;
   }, [index]);
   
-  useFrame(() => {
+  useFrame((state, delta) => {
+    // Number of 60 fps steps to simulate for this frame
+    const steps = frameScale(delta);
+
     // Calculate the distance to the star
     const distanceToStar = position.distanceTo(starPosition);
 
@@ -33,15 +36,15 @@ const Planet = ({ index, size, position, velocity, rotation, onStarCollision, pl
     if (distanceToStar > 0) {
       // Calculate gravitational force using the calculateGravitationalForce function
       const gravitationalForce = calculateGravitationalForce(starMass, position, starPosition, gravitationalForceVector);
-    
+
       // Update velocity by adding gravitational force
-      velocity.add(gravitationalForce);
+      velocity.addScaledVector(gravitationalForce, steps);
 
       if (shouldCorrectOrbit) {
 
         const distance = velocity.length();
         const radius = position.length()
-        const angle = Math.asin((distance/2)/radius);
+        const angle = Math.asin((distance*steps/2)/radius); // The planet moves by distance*steps this frame
 
         const newAngle = Math.atan2(position.z, position.x) - angle*2;
 
@@ -56,8 +59,8 @@ const Planet = ({ index, size, position, velocity, rotation, onStarCollision, pl
         for (const neighbor of planetNeighbors) {
           const planet = planets.find((planet) => planet.index === neighbor.index);
           if ( planet !== undefined ) {
-            // Decrease framesUntilCheck for each neighbor
-            neighbor.framesUntilCheck = Math.max(0, neighbor.framesUntilCheck - 1);
+            // Decrease framesUntilCheck for each neighbor (counted in 60 fps steps)
+            neighbor.framesUntilCheck = Math.max(0, neighbor.framesUntilCheck - steps);
 
             // Check if it's time to perform the distance check
             if (neighbor.framesUntilCheck === 0) {
@@ -93,6 +96,7 @@ const Planet = ({ index, size, position, velocity, rotation, onStarCollision, pl
                 const planetGravitationalForce = calculateGravitationalForce(planet.mass, position, planet.position, gravitationalForceVector);
                 
                 // Update velocity by adding gravitational force
+                // (once per check rather than per frame: checks happen at the same pace whatever the frame rate)
                 velocity.add(planetGravitationalForce.multiplyScalar(planetGravityFactor));
               
                 // increase frequency to check on this planet if its gravity is strong enough
@@ -110,14 +114,14 @@ const Planet = ({ index, size, position, velocity, rotation, onStarCollision, pl
       }
 
       // Update the planet's position based on the updated velocity
-      position.add(velocity);
+      position.addScaledVector(velocity, steps);
 
       planetRef.current.position.copy(position);
 
       // Apply self-rotation (spin)
-      planetRef.current.rotation.x += rotation.x;
-      planetRef.current.rotation.y += rotation.y;
-      planetRef.current.rotation.z += rotation.z;
+      planetRef.current.rotation.x += rotation.x * steps;
+      planetRef.current.rotation.y += rotation.y * steps;
+      planetRef.current.rotation.z += rotation.z * steps;
 
       if (distanceToStar <= Math.abs(starSize-size)) {
         // Notify the parent component about the collision

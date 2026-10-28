@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 
+import { frameScale } from './physics';
+
 const ExplosionParticle = ({ position, velocity, timestamp }) => {
   const particleRef = useRef();
 
@@ -28,10 +30,10 @@ const ExplosionParticle = ({ position, velocity, timestamp }) => {
   );
   const particleGeometry = useMemo(() => new THREE.SphereGeometry(0.01, 3, 3), []);
 
-  useFrame(() => {
-    // Update particle position based on velocity
+  useFrame((state, delta) => {
+    // Update particle position based on velocity (per 60 fps step)
     if (velocity) {
-      particleRef.current.position.add(velocity);
+      particleRef.current.position.addScaledVector(velocity, frameScale(delta));
     }
     // Calculate elapsed time since the timestamp
     const elapsedMilliseconds = Date.now() - timestamp;
