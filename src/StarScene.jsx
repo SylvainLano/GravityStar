@@ -46,6 +46,17 @@ const spotRange = 4;
 const defaultCameraDistance = cameraPosition.length();
 const minCameraDistance = 3;
 const maxCameraDistance = 30;
+// Rotation: the camera turns around the star, by its angle from the vertical axis (polar) and around it (azimuth),
+// starting from the former fixed view. Dragging across the height of the scene turns it by a full turn.
+const startView = (() => {
+  const spherical = new THREE.Spherical().setFromVector3(cameraPosition);
+  return { polar: spherical.phi, azimuth: spherical.theta };
+})();
+const minPolar = 0.02; // Almost straight from above, or from below
+const maxPolar = Math.PI - 0.02;
+// Depth of the screen launch plane in front of the camera, as at the start (scaled by the zoom)
+const launchDepth = new THREE.Vector3().subVectors(starPosition, cameraPosition).normalize()
+  .dot(new THREE.Vector3().subVectors(asteroidStartingPosition, cameraPosition));
 // The background stars surround the camera at this distance, as if infinitely far, whatever the zoom (see Sky)
 const skyRadius = 60;
 
@@ -139,7 +150,8 @@ function Sky({ children }) {
 // system: a counter, increased to start again with a new random system
 // asteroidTrail, planetTrail: the length of the trails (see Trail.jsx)
 // trajectoryPreview: whether the path of the asteroid is shown while aiming
-function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroidGravityFactor, planetGravityFactor, starIntensity, launchMode, skinId, speed, system, asteroidTrail, planetTrail, trajectoryPreview}) {
+// mainButton: what the main mouse button, a finger or a pen does, 'launch' or 'rotate' (the right button does the other)
+function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroidGravityFactor, planetGravityFactor, starIntensity, launchMode, skinId, speed, system, asteroidTrail, planetTrail, trajectoryPreview, mainButton}) {
 
   const skin = findSkin(skinId);
   const canvasRef = useRef();
@@ -174,10 +186,15 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
     return light;
   }, []);
 
-  // Zoom with the mouse wheel (or a pinch on a touchpad), and the + and - keys
+  // Zoom with the mouse wheel (or a pinch on a touchpad), and the + and - keys;
+  // rotation around the star by dragging (see handlePointerDown); the V key brings back the starting view
   const [cameraDistance, setCameraDistance] = useState(defaultCameraDistance);
+  const [view, setView] = useState(startView);
   const zoom = cameraDistance / defaultCameraDistance;
-  const viewPosition = useMemo(() => cameraPosition.clone().multiplyScalar(zoom), [zoom]);
+  const viewPosition = useMemo(
+    () => new THREE.Vector3().setFromSphericalCoords(cameraDistance, view.polar, view.azimuth),
+    [cameraDistance, view]
+  );
   useEffect(() => {
     const zoomBy = (factor) => setCameraDistance((distance) => THREE.MathUtils.clamp(distance * factor, minCameraDistance, maxCameraDistance));
     const onWheel = (e) => {
@@ -190,6 +207,10 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
       if (e.ctrlKey || e.metaKey || e.altKey || e.target.closest?.('input[type="text"], select, textarea')) return;
       if (e.key === '+' || e.key === '=') zoomBy(1 / 1.15);
       if (e.key === '-') zoomBy(1.15);
+      if (e.key === 'v' || e.key === 'V') {
+        setView(startView);
+        setCameraDistance(defaultCameraDistance);
+      }
     };
     const canvas = canvasRef.current;
     canvas.addEventListener('wheel', onWheel, { passive: false });
@@ -205,9 +226,8 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
     spotlight.position.copy(viewPosition);
     spotlight.distance = spotRange * zoom;
     spotlight.intensity = 15 * zoom * zoom; // The same light on the launch plane, whose distance grows with the zoom
-    const launchPoint = viewPosition.clone().lerp(starPosition, 0.25);
-    launchPoint.y -= 0.5 * zoom;
-    screenLaunchPlane.setFromNormalAndCoplanarPoint(screenLaunchPlane.normal, launchPoint);
+    const towardsStar = new THREE.Vector3().subVectors(starPosition, viewPosition).normalize();
+    screenLaunchPlane.setFromNormalAndCoplanarPoint(towardsStar, viewPosition.clone().addScaledVector(towardsStar, launchDepth * zoom));
   }, [spotlight, viewPosition, zoom]);
 
   // Creating the stars in the background, around the camera (see Sky)
@@ -270,16 +290,16 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
     return raycaster.ray.intersectPlane(plane, target);
   };
 
-  const handlePointerDown = (e) => {
-    // One asteroid at a time, launched with the main mouse button, a finger or a pen
-    if (aim.current.active || !three.current || (e.pointerType === 'mouse' && e.button !== 0)) return;
+  // The pointer turning the camera around the star, with where it was
+  const rotation = useRef(null);
 
-    // Create the asteroid under the pointer, on the plane of the current launch mode
-    const plane = launchMode === 'orbital' ? orbitalLaunchPlane : screenLaunchPlane;
-    const origin = pointerOnPlane(e, plane, aim.current.origin);
-    if (!origin || (launchMode === 'orbital' && origin.length() > maxOrbitalLaunchDistance)) return;
-    // Never inside another asteroid, which it would hit at once (they may wait together while the game is paused)
-    if (asteroids.some((asteroid) => asteroid.position.distanceTo(origin) < asteroidCollisionDistance)) return;
+  const handlePointerDown = (e) => {
+    if (aim.current.active || rotation.current || !three.current) return;
+    // The main mouse button, a finger or a pen launches an asteroid and the right button turns the camera,
+    // or the other way round (mainButton, see App.jsx)
+    const rightButton = e.pointerType === 'mouse' && e.button === 2;
+    if (e.pointerType === 'mouse' && e.button !== 0 && !rightButton) return;
+    const rotates = rightButton !== (mainButton === 'rotate');
 
     // Keep receiving the pointer events even if the pointer leaves the scene before being released
     try {
@@ -287,6 +307,19 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
     } catch {
       // The pointer is already gone: it will be released right away
     }
+
+    if (rotates) {
+      rotation.current = { pointerId: e.pointerId, x: e.clientX, y: e.clientY };
+      setHoveredPlanet(null);
+      return;
+    }
+
+    // One asteroid at a time: create it under the pointer, on the plane of the current launch mode
+    const plane = launchMode === 'orbital' ? orbitalLaunchPlane : screenLaunchPlane;
+    const origin = pointerOnPlane(e, plane, aim.current.origin);
+    if (!origin || (launchMode === 'orbital' && origin.length() > maxOrbitalLaunchDistance)) return;
+    // Never inside another asteroid, which it would hit at once (they may wait together while the game is paused)
+    if (asteroids.some((asteroid) => asteroid.position.distanceTo(origin) < asteroidCollisionDistance)) return;
 
     const index = nextKey.current++;
     Object.assign(aim.current, { active: true, pointerId: e.pointerId, asteroidIndex: index, mode: launchMode });
@@ -346,6 +379,20 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
   };
 
   const handlePointerMove = (e) => {
+    if (rotation.current) {
+      if (e.pointerId !== rotation.current.pointerId) return;
+      // As if grabbing the scene: dragging to the right turns it to the right, dragging down shows it from above
+      const turn = (2 * Math.PI) / e.currentTarget.getBoundingClientRect().height;
+      const dx = e.clientX - rotation.current.x;
+      const dy = e.clientY - rotation.current.y;
+      rotation.current.x = e.clientX;
+      rotation.current.y = e.clientY;
+      setView((previous) => ({
+        polar: THREE.MathUtils.clamp(previous.polar - dy * turn, minPolar, maxPolar),
+        azimuth: previous.azimuth - dx * turn,
+      }));
+      return;
+    }
     if (aim.current.active) {
       if (e.pointerId === aim.current.pointerId) updateAim(e);
       return;
@@ -355,12 +402,16 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
   };
 
   const handlePointerUp = (e) => {
+    if (rotation.current?.pointerId === e.pointerId) {
+      rotation.current = null;
+      return;
+    }
     if (!aim.current.active || e.pointerId !== aim.current.pointerId) return;
     updateAim(e);
     aim.current.active = false;
 
     const launchVelocity = getLaunchVelocity(aim.current, new THREE.Vector3());
-    playSound('launch', { strength: launchVelocity.length() / 0.03, pan: panOf(aim.current.origin.x) });
+    playSound('launch', { strength: launchVelocity.length() / 0.03, pan: panOf(aim.current.origin) });
 
     const launchedIndex = aim.current.asteroidIndex;
     setAsteroids((prevAsteroids) =>
@@ -382,7 +433,7 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
   };
 
   const handleAsteroidToAsteroidCollision = useCallback((collidedAsteroid1, collidedAsteroid2, position) => {
-    playSound('crash', { pan: panOf(position.x) });
+    playSound('crash', { pan: panOf(position) });
     // Add a new explosion to the array
     const newExplosion = {
       index: nextKey.current++,
@@ -398,7 +449,7 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
   const handleAsteroidToPlanetCollision = useCallback((collidedAsteroid, collidedPlanet, position, momentumToAdd, angularMomentumToAdd) => {
 
     // Louder when the planet is shaken harder, in the planet's note for the music of the spheres
-    playSound('impact', { strength: momentumToAdd.length() * 150, pan: panOf(position.x), note: planetNotes[planetData[collidedPlanet - 1]?.name] });
+    playSound('impact', { strength: momentumToAdd.length() * 150, pan: panOf(position), note: planetNotes[planetData[collidedPlanet - 1]?.name] });
 
     // Add a new explosion to the array
     const newExplosion = {
@@ -500,6 +551,8 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
         onPointerLeave={() => setHoveredPlanet(null)}
+        // The right button turns the camera: no context menu
+        onContextMenu={(e) => e.preventDefault()}
       >
         <SimulationContext.Provider value={simulation}>
         <SimulationClock simulation={simulation} speed={speed} />

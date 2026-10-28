@@ -6,7 +6,7 @@ import { defaultVolume, getVolume, isSoundOn, setSoundOn, setVolume } from './au
 import { initialSkinId, rememberSkin } from './skins/skins';
 
 // Create a separate component for simulation parameters
-function SimulationParameters({ speed, onSpeedChange, onRandomSystem, volume, onVolumeChange, asteroidTrail, onAsteroidTrailChange, planetTrail, onPlanetTrailChange, starSize, onStarSizeChange, planetSizeFactor, onPlanetSizeFactorChange, starMass, onStarMassChange, asteroidMass, onAsteroidMassChange, asteroidGravityFactor, onAsteroidGravityFactorChange, planetGravityFactor, onPlanetGravityFactorChange, starIntensity, onStarIntensityChange, launchMode, onLaunchModeChange, trajectoryPreview, onTrajectoryPreviewChange }) {
+function SimulationParameters({ speed, onSpeedChange, onRandomSystem, volume, onVolumeChange, asteroidTrail, onAsteroidTrailChange, planetTrail, onPlanetTrailChange, starSize, onStarSizeChange, planetSizeFactor, onPlanetSizeFactorChange, starMass, onStarMassChange, asteroidMass, onAsteroidMassChange, asteroidGravityFactor, onAsteroidGravityFactorChange, planetGravityFactor, onPlanetGravityFactorChange, starIntensity, onStarIntensityChange, launchMode, onLaunchModeChange, trajectoryPreview, onTrajectoryPreviewChange, mainButton, onMainButtonChange }) {
   // With a mouse, the panel opens when hovered and closes when the mouse leaves it.
   // On touch screens, where nothing is hovered, a tap on its title opens or closes it.
   const [open, setOpen] = useState(false);
@@ -219,6 +219,29 @@ function SimulationParameters({ speed, onSpeedChange, onRandomSystem, volume, on
         </span>
       </div>
 
+      {/* What dragging with the main button (or a finger) does; the right button does the other */}
+      <div className="parameter">
+        <label htmlFor="main-button">Left Button / Touch:</label>{' '}
+        <span className={mainButton === 'launch' ? 'switch-option active' : 'switch-option'} onClick={() => onMainButtonChange('launch')}>
+          Launch
+        </span>
+        <label className="switch">
+          <input
+            type="checkbox"
+            id="main-button"
+            role="switch"
+            checked={mainButton === 'rotate'}
+            onChange={(e) => onMainButtonChange(e.target.checked ? 'rotate' : 'launch')}
+          />
+          <span className="switch-track" />
+        </label>
+        <span className={mainButton === 'rotate' ? 'switch-option active' : 'switch-option'} onClick={() => onMainButtonChange('rotate')}>
+          Rotate View
+        </span>
+        <br />
+        Right button: the other · V: reset the view
+      </div>
+
       <div className="parameter">
         <br />
         <br />
@@ -258,6 +281,7 @@ function App() {
   const [asteroidTrail, setAsteroidTrail] = useState(3); // length of the asteroids' trails: 0 for none, 3 for 4 seconds (see Trail.jsx)
   const [planetTrail, setPlanetTrail] = useState(0); // length of the planets' trails, none by default
   const [trajectoryPreview, setTrajectoryPreview] = useState(true); // dots showing where the asteroid will go, while aiming
+  const [mainButton, setMainButton] = useState('launch'); // dragging with the main button launches ('launch') or turns the view ('rotate')
   const newRandomSystem = useCallback(() => setSystem((previous) => previous + 1), []);
   // Sound: always off when the game starts. The volume sliders show 0 while it is off; switching it on brings back
   // the level (1 to 10) it had before being cut, remembered for the next visits (see audio/sound.js)
@@ -357,6 +381,7 @@ function App() {
         asteroidTrail={asteroidTrail}
         planetTrail={planetTrail}
         trajectoryPreview={trajectoryPreview}
+        mainButton={mainButton}
       />
       <SimulationParameters
         speed={speed}
@@ -386,6 +411,8 @@ function App() {
         onLaunchModeChange={setLaunchMode}
         trajectoryPreview={trajectoryPreview}
         onTrajectoryPreviewChange={setTrajectoryPreview}
+        mainButton={mainButton}
+        onMainButtonChange={setMainButton}
       />
       <div className="top-bar">
         <SoundToggle on={soundOn} onToggle={toggleSound} volume={soundOn ? volume : 0} onVolumeChange={changeVolume} />

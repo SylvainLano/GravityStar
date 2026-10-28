@@ -36,8 +36,21 @@ function loadVolume() {
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
-// Where a sound comes from, from -1 (left) to 1 (right), by the x of its place in the scene
-export const panOf = (x) => clamp(x / 10, -1, 1);
+// The listener, at the camera turning around the star (at the origin): its right, and the direction towards it
+// (see setListener; these are only used before the first frame)
+const listener = { right: { x: 1, y: 0, z: 0 }, front: { x: 0, y: 0, z: 1 } };
+const along = (position, direction) => position.x * direction.x + position.y * direction.y + position.z * direction.z;
+
+// Follows the camera on each frame (see SoundBridge)
+export function setListener(camera) {
+  const e = camera.matrixWorld.elements;
+  listener.right = { x: e[0], y: e[1], z: e[2] };
+  const length = camera.position.length() || 1;
+  listener.front = { x: camera.position.x / length, y: camera.position.y / length, z: camera.position.z / length };
+}
+
+// Where a sound comes from, from -1 (left) to 1 (right), by its place in the scene as the camera sees it
+export const panOf = (position) => clamp(along(position, listener.right) / 10, -1, 1);
 
 // ----- Instruments, each playing into out (any audio node) at the time start -----
 
@@ -305,7 +318,7 @@ function updateHeld(voices, wanted) {
   }
 }
 
-const lastX = new Map(); // Planet name: where it was along x, to hear it pass in front of the star
+const lastX = new Map(); // Planet name: where it was from left to right, to hear it pass in front of the star
 
 // The music of the spheres, on each frame: the planets (as in the game's state), the asteroids, and the camera's position
 export function updateSpheres(planets, asteroids, cameraPosition) {
@@ -316,14 +329,16 @@ export function updateSpheres(planets, asteroids, cameraPosition) {
     for (const planet of planets) {
       const note = planetNotes[planet.name];
       if (!note) continue;
-      const { x, z } = planet.position;
+      // From left to right, and towards the camera, as the camera sees it
+      const x = along(planet.position, listener.right);
+      const z = along(planet.position, listener.front);
       // Louder when it comes closer to the camera
       const closeness = clamp(6 / planet.position.distanceTo(cameraPosition), 0, 1);
-      wantedPlanets.set(planet.name, { frequency: note, gain: 0.008 + 0.022 * closeness, pan: panOf(x) });
+      wantedPlanets.set(planet.name, { frequency: note, gain: 0.008 + 0.022 * closeness, pan: panOf(planet.position) });
       // It passes in front of the star, between the star and the camera: it rings its note
       const before = lastX.get(planet.name);
       if (z > 0 && before !== undefined && Math.sign(x) !== Math.sign(before)) {
-        effects.spheres.pass(context, master, context.currentTime, { note, pan: panOf(x), gain: 0.4 + 0.6 * closeness });
+        effects.spheres.pass(context, master, context.currentTime, { note, pan: panOf(planet.position), gain: 0.4 + 0.6 * closeness });
       }
       lastX.set(planet.name, x);
     }
@@ -331,7 +346,7 @@ export function updateSpheres(planets, asteroids, cameraPosition) {
     for (const asteroid of asteroids) {
       if (!asteroid.moving) continue;
       const frequency = clamp(196 * 2 ** (asteroid.velocity.length() / 0.008), 196, 1760);
-      wantedWhistles.set(asteroid.index, { frequency, gain: 0.02, pan: panOf(asteroid.position.x) });
+      wantedWhistles.set(asteroid.index, { frequency, gain: 0.02, pan: panOf(asteroid.position) });
     }
   }
   updateHeld(planetVoices, wantedPlanets);
