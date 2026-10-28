@@ -74,7 +74,7 @@ const hoverMargin = 12;
 
 /* The planets
     size is the square root of diameter divided by 2000
-    distance is choosen in order to see all planets on the scene, plus the star's size: twice their distance in AU
+    distance is chosen in order to see all planets on the scene, plus the star's size: twice their distance in AU
       for the inner planets, closer and closer for the outer ones
     their years keep their real proportions (see realPlanets.js): the Earth's lasts earthYear
     rotation is 0.01 divided by the number of earth days for the planet to rotate on itself
@@ -182,7 +182,7 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
     light.intensity = 15;
     // Set spotlight parameters
     light.distance = spotRange; // Adjust the light's distance
-    light.angle = Math.PI / 3; // Set the cone angle (adjust as needed)
+    light.angle = Math.PI / 3; // A wide cone, lighting the whole launch plane in front of the camera
     light.penumbra = 0; // No penumbra: the edge of the light is sharp
     light.target.position.copy(starPosition);
     return light;
@@ -437,7 +437,7 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
   };  
 
   const handleExplosionEnd = (endedExplosion) => {
-    // Update the state to remove the collided asteroid
+    // Update the state to remove the ended explosion
     setExplosions((prevExplosions) => prevExplosions.filter((explosion) => explosion.index !== endedExplosion));
   };
 

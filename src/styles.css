@@ -177,14 +177,6 @@ body {
   font-size: 10pt;
 }
 
-/* Closer to the corner when the screen is narrow */
-@media (max-width: 720px) {
-  .simulation-parameters {
-    top: 16px;
-    left: 16px;
-  }
-}
-
 /* The panel opens when hovered, or when opened with a click or a tap on its title */
 .simulation-parameters:hover,
 .simulation-parameters.open {
@@ -531,6 +523,7 @@ body {
   box-shadow: var(--ui-shadow);
   background-color: var(--panel-bg-open);
   color: var(--panel-text-open);
+  backdrop-filter: blur(6px); /* What is behind it, seen through, stays a blur */
   font-family: 'Space Mono', monospace;
   font-size: 8pt;
 }
@@ -692,16 +685,6 @@ body {
   100% { opacity: 0; }
 }
 
-/* Under the skin selector when the screen is too narrow for both */
-@media (max-width: 720px) {
-  .paused {
-    top: 52px;
-    left: auto;
-    right: 16px;
-    transform: none;
-  }
-}
-
 /* Panel of the planet under the mouse (see PlanetInfo.jsx), beside it, in the colors of the open settings panel */
 .planet-info {
   position: absolute;
@@ -785,4 +768,52 @@ body {
 
 .credits a {
   color: var(--credits-link);
+}
+
+/* ----- Narrow screens (phones): the top bar on its own row, the settings under it, the panels within the screen ----- */
+@media (max-width: 720px) {
+  /* Without the skin's name (its swatch shows which one is on), the top bar fits */
+  .skin-name {
+    display: none;
+  }
+
+  .simulation-parameters {
+    top: 56px;
+    left: 16px;
+    max-height: calc(100vh - 72px);
+    padding: 14px 16px;
+  }
+
+  /* The name of a setting takes what is left; a switch goes on its own row, under its name */
+  .setting {
+    grid-template-columns: minmax(0, 1fr) 110px 5ch;
+    column-gap: 10px;
+  }
+
+  .setting-toggle {
+    grid-column: 1 / -1;
+    margin-bottom: 4px;
+  }
+
+  /* Under the settings' title */
+  .paused {
+    top: 108px;
+  }
+
+  /* The board in the middle of the screen, the details of an achievement under the whole board */
+  .achievements-board {
+    position: fixed;
+    top: 56px;
+  }
+
+  .achievement {
+    position: static;
+  }
+
+  .achievement-details {
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    width: auto;
+  }
 }

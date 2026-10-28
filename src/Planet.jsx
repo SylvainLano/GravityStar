@@ -23,14 +23,15 @@ const Planet = ({ index, name, size, position, velocity, rotation, onStarCollisi
   // Materials of the stylized skins (null for the realistic one)
   const look = useStyleLook(`planet:${name}`, (style, shared) => createPlanetLook(style, { shared, map: texture, name }));
 
-  // Calculate neighbors for this asteroid based on the existing asteroids
+  // The other planets, checked for collisions and pulling this one. Each is checked again only once they could
+  // have come close (framesUntilCheck), the first time at random, so that the checks are spread over the frames.
   const planetNeighbors = useMemo(() => {
     const data = [];
     for (const planet of planets) {
       if ( planet !== undefined && planet.index !== index ) {
         data.push({
           index: planet.index,
-          framesUntilCheck: Math.random()*planets.length, // Calculate based on your logic
+          framesUntilCheck: Math.random()*planets.length,
         });
       }
     }

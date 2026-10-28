@@ -120,7 +120,7 @@ function playArpeggio(c, out, { frequencies, step, type, start, gain, pan = 0 })
 
 // ----- What each style plays for each event -----
 // launch: an asteroid is thrown; impact: it hits a planet; crash: two asteroids collide; star: something falls into the star;
-// pass (realistic only): a planet passes in front of the star.
+// pass (realistic only): a planet passes in front of the star; achievement: an achievement is unlocked (a short jingle).
 // strength goes from 0 to 1, pan from -1 to 1, note is the planet's note.
 
 export const effects = {
@@ -139,6 +139,10 @@ export const effects = {
       playTone(c, out, { frequency: 1568, to: 196, start: t, duration: 2.2, attack: 0.05, gain: 0.03, pan });
     },
     pass: (c, out, t, { note, pan, gain }) => playBell(c, out, { frequency: note, start: t, duration: 3.5, gain: 0.1 * gain, pan }),
+    // Bells rising on the planets' pentatonic scale
+    achievement: (c, out, t) => [523.25, 659.25, 783.99, 1046.5].forEach((frequency, i) => (
+      playBell(c, out, { frequency, start: t + i * 0.12, duration: 1.6, gain: 0.06 })
+    )),
   },
 
   // Comic book: a whoosh, a BOOM with punch, a crack, a sizzle
@@ -156,6 +160,11 @@ export const effects = {
       playNoise(c, out, { filter: 'highpass', frequency: 2500, start: t, duration: 1.2, attack: 0.02, gain: 0.2 + 0.15 * strength, pan });
       playTone(c, out, { frequency: 1500, to: 200, start: t, duration: 0.8, gain: 0.08, pan });
     },
+    // "Ta-da!": a short chord, then a longer one an octave higher
+    achievement: (c, out, t) => {
+      [392, 523.25, 659.25].forEach((frequency) => playTone(c, out, { type: 'triangle', frequency, start: t, duration: 0.14, gain: 0.08 }));
+      [523.25, 659.25, 783.99, 1046.5].forEach((frequency) => playTone(c, out, { type: 'triangle', frequency, start: t + 0.16, duration: 0.8, attack: 0.01, gain: 0.07 }));
+    },
   },
 
   // Arcade: the square waves and noise of 8-bit consoles
@@ -167,6 +176,11 @@ export const effects = {
     },
     crash: (c, out, t, { pan }) => playArpeggio(c, out, { frequencies: [880, 659.25], step: 0.05, type: 'square', start: t, gain: 0.08, pan }),
     star: (c, out, t, { pan }) => playTone(c, out, { type: 'square', frequency: 1200, to: 100, start: t, duration: 0.6, gain: 0.08, pan }),
+    // The jingle of an item picked up, the last note held
+    achievement: (c, out, t) => {
+      playArpeggio(c, out, { frequencies: [783.99, 987.77, 1174.66], step: 0.07, type: 'square', start: t, gain: 0.06 });
+      playTone(c, out, { type: 'square', frequency: 1567.98, start: t + 0.21, duration: 0.45, gain: 0.06 });
+    },
   },
 
   // Neko Nebula: the same consoles, cuter: a pew, a boing, a pop, a little mew
@@ -189,6 +203,11 @@ export const effects = {
       tone.connect(filter).connect(out);
       playTone(c, tone, { type: 'sawtooth', frequency: 700, to: 420, start: t, duration: 0.45, attack: 0.04, gain: 0.25, pan });
     },
+    // Quick rising blips, and a sparkle on top
+    achievement: (c, out, t) => {
+      playArpeggio(c, out, { frequencies: [1046.5, 1318.5, 1568, 2093], step: 0.06, type: 'square', start: t, gain: 0.05 });
+      playBell(c, out, { frequency: 3136, start: t + 0.24, duration: 0.8, gain: 0.04 });
+    },
   },
 
   // Anime: a sharp whistle, a crystal-clear hit, a "shing", a shimmer
@@ -201,6 +220,11 @@ export const effects = {
     },
     crash: (c, out, t, { pan }) => playNoise(c, out, { filter: 'bandpass', frequency: 5000, q: 4, start: t, duration: 0.35, gain: 0.3, pan }),
     star: (c, out, t, { pan }) => playArpeggio(c, out, { frequencies: [1318.5, 1568, 2093, 2637], step: 0.06, type: 'sine', start: t, gain: 0.06, pan }),
+    // A shimmer rising to a crystal bell
+    achievement: (c, out, t) => {
+      playArpeggio(c, out, { frequencies: [1568, 2093, 2637, 3136], step: 0.05, type: 'sine', start: t, gain: 0.05 });
+      playBell(c, out, { frequency: 2093, start: t + 0.2, duration: 1.4, gain: 0.08 });
+    },
   },
 
   // Pastel and watercolor: soft wooden notes
@@ -215,6 +239,8 @@ export const effects = {
       playMarimba(c, out, { frequency: 659.25, start: t + 0.09, gain: 0.1, pan });
     },
     star: (c, out, t, { pan }) => [783.99, 659.25, 523.25, 392].forEach((frequency, i) => playMarimba(c, out, { frequency, start: t + i * 0.12, gain: 0.12, pan })),
+    // The fall into the star the other way round: rising
+    achievement: (c, out, t) => [523.25, 659.25, 783.99, 1046.5].forEach((frequency, i) => playMarimba(c, out, { frequency, start: t + i * 0.1, gain: 0.12 })),
   },
 };
 

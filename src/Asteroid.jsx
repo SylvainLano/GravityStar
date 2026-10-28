@@ -29,31 +29,33 @@ const Asteroid = ({ index, position, velocity, angularVelocity, active, moving, 
   const look = useStyleLook('asteroid', (style, shared) => createAsteroidLook(style, { shared, scene }));
   const model = useMemo(() => (look ?? scene).clone(), [look, scene]);
 
-  // Add a state variable for activity
+  // False once it has hit something: it stops moving, until the scene removes it
   const [isActive, setIsActive] = useState(active);
 
-  // Calculate neighbors for this asteroid based on the existing asteroids
+  // The asteroids this one checks for collisions: the older ones (each pair is checked by its newer asteroid).
+  // Each neighbor is checked again only once it could have come close (framesUntilCheck), the first time at random,
+  // so that the checks are spread over the frames.
   const asteroidNeighbors = useMemo(() => {
     const data = [];
     for (const asteroid of asteroids) {
       if ( asteroid !== undefined && asteroid.index < index ) {
         data.push({
           index: asteroid.index,
-          framesUntilCheck: Math.random()*asteroids.length, // Calculate based on your logic
+          framesUntilCheck: Math.random()*asteroids.length,
         });
       }
     }
     return data;
   }, [index]);
 
-  // Calculate neighbors for this asteroid based on the existing asteroids
+  // The planets, checked for collisions and pulling the asteroid, in the same way
   const planetNeighbors = useMemo(() => {
     const data = [];
     for (const planet of planets) {
       if ( planet !== undefined ) {
         data.push({
           index: planet.index,
-          framesUntilCheck: Math.random()*planets.length, // Calculate based on your logic
+          framesUntilCheck: Math.random()*planets.length,
         });
       }
     }
@@ -97,14 +99,14 @@ const Asteroid = ({ index, position, velocity, angularVelocity, active, moving, 
           if (neighbor.framesUntilCheck === 0) {
             const distance = position.distanceTo(otherAsteroid.position);
             if (distance < asteroidCollisionDistance) {
-              const halfwayPosition = new THREE.Vector3();
-              halfwayPosition.copy(position).add(otherAsteroid.position).multiplyScalar(0.5);
+              // The explosion halfway between them
+              const halfwayPosition = position.clone().lerp(otherAsteroid.position, 0.5);
               onAsteroidCollision(index, neighbor.index, halfwayPosition);
               setIsActive(false);
               return false;
             }
-            // Set framesUntilCheck for the next check
-            neighbor.framesUntilCheck = Math.max(1, Math.round(distance/(velocity.length()+otherAsteroid.velocity.length()))); // Calculate based on your logic
+            // Next check: not before they could have met, at their speeds
+            neighbor.framesUntilCheck = Math.max(1, Math.round(distance/(velocity.length()+otherAsteroid.velocity.length())));
           }
         }
       }
@@ -119,8 +121,9 @@ const Asteroid = ({ index, position, velocity, angularVelocity, active, moving, 
             const distance = position.distanceTo(planet.position);
             if (distance < (0.1 + (planet.size * planetSizeFactor))) {
 
-              const relativePosition = new THREE.Vector3().copy(position).sub(planet.position);
-              const explosionPosition = new THREE.Vector3().copy(relativePosition).add(planet.position);
+              // The explosion where the asteroid is; where it hits the planet, from the planet's center, sets the spin
+              const explosionPosition = position.clone();
+              const relativePosition = position.clone().sub(planet.position);
 
               // The planet takes a share of the relative velocity: more than the masses would give (with their cube
               // roots), for impacts that show, but less than all of it, so that it never leaves faster than the asteroid

@@ -1,16 +1,19 @@
 import React, { useEffect, useRef, useState } from 'react';
 
 import { achievements, getUnlocked, onUnlock } from './achievements';
+import { playSound } from './audio/sound';
 
 // How long a notification stays, when an achievement is unlocked
 const toastLength = 4000; // ms
 
-// The achievements unlocked so far, and the notifications of the latest ones
+// The achievements unlocked so far, and the notifications of the latest ones (with a jingle in the skin's style,
+// when the sound is on)
 export function useAchievements() {
   const [unlocked, setUnlocked] = useState(getUnlocked);
   const [toasts, setToasts] = useState([]);
   const nextToast = useRef(0);
   useEffect(() => onUnlock((achievement) => {
+    playSound('achievement');
     setUnlocked(getUnlocked());
     const id = nextToast.current++;
     setToasts((previous) => [...previous, { id, achievement }]);
