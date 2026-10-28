@@ -14,9 +14,19 @@ export function frameScale(delta) {
 // Two asteroids closer than this collide
 export const asteroidCollisionDistance = 0.15;
 
-export function calculateGravitationalForce(objetMass, position, objectPosition, target = new THREE.Vector3()) {
-  const gravitationalConstant = 6.674 * Math.pow(10, -11); // Adjusted gravitational constant
+const gravitationalConstant = 6.674 * Math.pow(10, -11); // Adjusted gravitational constant
 
+// The star's mass by default (in Earth masses, as the Sun's), for which the planets' orbits are set
+export const sunMass = 333000;
+
+// How strongly the star must pull a body, compared with its gravity, to hold it on a circle of this radius at this speed
+// (per 60 fps step). The planets' distances are squeezed to fit on the screen while their years keep their real
+// proportions, which the star's gravity alone could not hold: each planet feels it with its own strength.
+export function starPullFor(radius, speed) {
+  return (speed * speed * radius) / (gravitationalConstant * sunMass);
+}
+
+export function calculateGravitationalForce(objetMass, position, objectPosition, target = new THREE.Vector3()) {
   // Calculate the vector from the planet to the star (sun)
   const distanceVector = target; // Written into target, so callers can reuse a vector instead of creating one on every frame
   distanceVector.subVectors(position, objectPosition); // Assuming the star is at the origin
@@ -31,12 +41,39 @@ export function calculateGravitationalForce(objetMass, position, objectPosition,
   return forceVector;
 }
 
+// The orbit of a body around the star (at the origin), from its position and its velocity (per 60 fps step), under
+// the star's gravity alone: its distance and speed now, the time of a turn (in steps, null when it never comes back),
+// its eccentricity (0 for a circle, towards 1 for a very stretched ellipse, 1 or more when it leaves), its mean
+// distance (semiMajorAxis), how close to the star it will pass, and whether it turns the other way round.
+// starMass: the mass the body feels (for a planet, multiplied by its starPull).
+const angularMomentum = new THREE.Vector3();
+export function describeOrbit(position, velocity, starMass) {
+  const distance = position.length();
+  const speed = velocity.length();
+  // The planets start turning with their angular momentum pointing up
+  const retrograde = angularMomentum.crossVectors(position, velocity).y < 0;
+  const mu = gravitationalConstant * starMass;
+  if (mu <= 0) {
+    // A star without mass, or pushing away: nothing comes back
+    return { distance, speed, period: null, eccentricity: Infinity, semiMajorAxis: Infinity, closest: distance, escaping: true, retrograde };
+  }
+  const energy = (speed * speed) / 2 - mu / distance;
+  const h2 = angularMomentum.lengthSq();
+  const eccentricity = Math.sqrt(Math.max(0, 1 + (2 * energy * h2) / (mu * mu)));
+  const closest = h2 / (mu * (1 + eccentricity));
+  if (energy >= 0) {
+    return { distance, speed, period: null, eccentricity, semiMajorAxis: Infinity, closest, escaping: true, retrograde };
+  }
+  const semiMajorAxis = -mu / (2 * energy);
+  return { distance, speed, period: 2 * Math.PI * Math.sqrt(semiMajorAxis ** 3 / mu), eccentricity, semiMajorAxis, closest, escaping: false, retrograde };
+}
+
 // Reused by every prediction, to avoid creating new objects on every frame
 const predicted = { position: new THREE.Vector3(), velocity: new THREE.Vector3(), force: new THREE.Vector3() };
 const predictedPlanets = Array.from({ length: 16 }, () => ({ position: new THREE.Vector3(), velocity: new THREE.Vector3(), wait: 0 }));
 
 // Predicts the path of an asteroid thrown from origin at velocity, moving as the asteroids do (see Asteroid.jsx),
-// for at most maxSteps steps of 60 fps. Meanwhile the planets move around the star (leaving out their pull on each other).
+// for at most maxSteps steps of 60 fps. Meanwhile the planets move around the star, each with its own pull (starPull).
 // Writes one point every `every` steps into points (a Float32Array of x, y, z), until it is full,
 // and returns how many points were written and whether the path ends on the star or a planet.
 export function predictTrajectory({ origin, velocity, planets, starPosition, starMass, starSize, asteroidGravityFactor, planetGravityFactor, planetSizeFactor, maxSteps, every, points }) {
@@ -55,7 +92,7 @@ export function predictTrajectory({ origin, velocity, planets, starPosition, sta
     // The planets follow their orbits
     for (let i = 0; i < planetCount; i++) {
       const planet = predictedPlanets[i];
-      planet.velocity.add(calculateGravitationalForce(starMass, planet.position, starPosition, predicted.force));
+      planet.velocity.addScaledVector(calculateGravitationalForce(starMass, planet.position, starPosition, predicted.force), planets[i].starPull);
       planet.position.add(planet.velocity);
     }
 

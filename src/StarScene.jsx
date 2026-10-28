@@ -9,9 +9,11 @@ import TwinklingStar from './TwinklingStar';
 import Arrow from './Arrow';
 import TrajectoryPreview from './TrajectoryPreview';
 import Planet from './Planet';
+import PlanetInfo from './PlanetInfo';
 import Explosion from './Explosion';
 import { SimulationClock, SimulationContext, createSimulation } from './SimulationClock';
-import { asteroidCollisionDistance } from './physics';
+import { asteroidCollisionDistance, starPullFor } from './physics';
+import { realPlanets } from './realPlanets';
 import { playSound, panOf, planetNotes, setSoundStyle } from './audio/sound';
 import SoundBridge from './audio/SoundBridge';
 import { findSkin } from './skins/skins';
@@ -53,25 +55,32 @@ const pointer = new THREE.Vector2();
 const dragPoint = new THREE.Vector3();
 const directionToStar = new THREE.Vector3();
 const projection = new THREE.Vector3();
+const onScreen = new THREE.Vector3();
+// A planet counts as hovered when the pointer is this close to its edge on the screen (in pixels)
+const hoverMargin = 12;
 
 /* The planets
-    velocity is 10 divided by a hundred times the square root of days around the sun
     size is the square root of diameter divided by 2000
-    distance is choosen in order to see all planets on the scene (close to AU*8/10 for inner planets), plus the star's size
+    distance is choosen in order to see all planets on the scene, plus the star's size: twice their distance in AU
+      for the inner planets, closer and closer for the outer ones
+    their years keep their real proportions (see realPlanets.js): the Earth's lasts earthYear
     rotation is 0.01 divided by the number of earth days for the planet to rotate on itself
     mass is the ratio to earth mass
     startArc: the angles between which the planet starts, at random, in degrees (0 is on the right of the star, 90 behind it):
       the outer planets start behind the star, where the camera sees the farthest */
 const planetData = [
-  { name: 'mercury', size: 0.0349, distance: 0.8, velocity: 10 / 938, rotation: 0.00017, planetTexture: './img/2k_mercury.jpg', mass: 0.055, startArc: [0, 360] },
-  { name: 'venus', size: 0.055, distance: 1.44, velocity: 10 / 1559, rotation: 0.000041, planetTexture: './img/2k_venus_atmosphere.jpg', mass: 0.815, startArc: [0, 360] },
-  { name: 'earth', size: 0.05644, distance: 2, velocity: 10 / 1910, rotation: 0.01, planetTexture: './img/2k_earth_daymap.jpg', mass: 1, startArc: [0, 360] },
-  { name: 'mars', size: 0.0412, distance: 3.04, velocity: 10 / 2621, rotation: 0.01, planetTexture: './img/2k_mars.jpg', mass: 0.107, startArc: [0, 360] },
-  { name: 'jupiter', size: 0.1889, distance: 6.2, velocity: 10 / 6583, rotation: 0.024, planetTexture: './img/2k_jupiter.jpg', mass: 316, startArc: [20, 160] },
-  { name: 'saturn', size: 0.1706, distance: 9.5, velocity: 10 / 10373, rotation: 0.0229, planetTexture: './img/2k_saturn.jpg', mass: 95, startArc: [40, 140] },
-  { name: 'uranus', size: 0.1126, distance: 13, velocity: 10 / 17517, rotation: 0.0141, planetTexture: './img/2k_uranus.jpg', mass: 14.53, startArc: [55, 125] },
-  { name: 'neptune', size: 0.1105, distance: 17, velocity: 10 / 24500, rotation: 0.015, planetTexture: './img/2k_neptune.jpg', mass: 17.15, startArc: [60, 120] },
+  { name: 'mercury', size: 0.0349, distance: 0.8, rotation: 0.00017, planetTexture: './img/2k_mercury.jpg', mass: 0.055, startArc: [0, 360] },
+  { name: 'venus', size: 0.055, distance: 1.44, rotation: 0.000041, planetTexture: './img/2k_venus_atmosphere.jpg', mass: 0.815, startArc: [0, 360] },
+  { name: 'earth', size: 0.05644, distance: 2, rotation: 0.01, planetTexture: './img/2k_earth_daymap.jpg', mass: 1, startArc: [0, 360] },
+  { name: 'mars', size: 0.0412, distance: 3.04, rotation: 0.01, planetTexture: './img/2k_mars.jpg', mass: 0.107, startArc: [0, 360] },
+  { name: 'jupiter', size: 0.1889, distance: 6.2, rotation: 0.024, planetTexture: './img/2k_jupiter.jpg', mass: 316, startArc: [20, 160] },
+  { name: 'saturn', size: 0.1706, distance: 9.5, rotation: 0.0229, planetTexture: './img/2k_saturn.jpg', mass: 95, startArc: [40, 140] },
+  { name: 'uranus', size: 0.1126, distance: 13, rotation: 0.0141, planetTexture: './img/2k_uranus.jpg', mass: 14.53, startArc: [55, 125] },
+  { name: 'neptune', size: 0.1105, distance: 17, rotation: 0.015, planetTexture: './img/2k_neptune.jpg', mass: 17.15, startArc: [60, 120] },
 ];
+
+// The Earth's year: 48 seconds at the normal speed, in 60 fps steps
+const earthYear = 48 * 60;
 
 // Places each planet at a random angle of its start arc, on its circular orbit, with its velocity along the orbit
 function createPlanets(starSize) {
@@ -79,16 +88,23 @@ function createPlanets(starSize) {
     const [from, to] = planet.startArc;
     const angle = THREE.MathUtils.degToRad(from + Math.random() * (to - from));
     const radius = planet.distance + starSize;
+    // The speed to go round in its year, and the pull of the star that holds it on its circle at that speed
+    const year = (earthYear * realPlanets[planet.name].year) / realPlanets.earth.year;
+    const speed = (2 * Math.PI * radius) / year;
     return {
       index: i + 1,
       name: planet.name,
       size: planet.size,
       position: new THREE.Vector3(radius * Math.cos(angle), 0, -radius * Math.sin(angle)),
-      velocity: new THREE.Vector3(-Math.sin(angle), 0, -Math.cos(angle)).multiplyScalar(planet.velocity),
+      velocity: new THREE.Vector3(-Math.sin(angle), 0, -Math.cos(angle)).multiplyScalar(speed),
+      starPull: starPullFor(radius, speed),
       rotation: { x: 0, y: planet.rotation, z: 0 },
       planetTexture: planet.planetTexture,
       mass: planet.mass,
-      shouldCorrectOrbit: true,
+      // For the panel shown when hovering the planet (see PlanetInfo)
+      start: { distance: radius, speed },
+      impacts: 0,
+      lastImpact: -Infinity, // Game time (ms)
     };
   });
 }
@@ -287,6 +303,32 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
     };
 
     setAsteroids((prevAsteroids) => [...prevAsteroids, newAsteroid]);
+    setHoveredPlanet(null);
+  };
+
+  // The planet under the mouse, whose panel is shown (see PlanetInfo). The planets are small and move:
+  // the pointer only needs to be within a few pixels around one on the screen.
+  const [hoveredPlanet, setHoveredPlanet] = useState(null);
+  const findHoveredPlanet = (e) => {
+    const { camera } = three.current;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pixelsPerUnit = rect.height / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))); // At a distance of 1
+    let found = null;
+    let nearest = Infinity;
+    for (const planet of planets) {
+      onScreen.copy(planet.position).project(camera);
+      if (onScreen.z > 1) continue; // Behind the camera
+      const distance = Math.hypot(
+        ((onScreen.x + 1) / 2) * rect.width - (e.clientX - rect.left),
+        ((1 - onScreen.y) / 2) * rect.height - (e.clientY - rect.top)
+      );
+      const reach = (planet.size * planetSizeFactor * pixelsPerUnit) / camera.position.distanceTo(planet.position) + hoverMargin;
+      if (distance < reach && distance < nearest) {
+        found = planet.index;
+        nearest = distance;
+      }
+    }
+    return found;
   };
 
   // Aim from where the asteroid was created towards the pointer
@@ -304,9 +346,12 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
   };
 
   const handlePointerMove = (e) => {
-    if (aim.current.active && e.pointerId === aim.current.pointerId) {
-      updateAim(e);
+    if (aim.current.active) {
+      if (e.pointerId === aim.current.pointerId) updateAim(e);
+      return;
     }
+    // Only with a mouse: on a touch screen, touching a planet launches an asteroid
+    if (e.pointerType === 'mouse' && three.current) setHoveredPlanet(findHoveredPlanet(e));
   };
 
   const handlePointerUp = (e) => {
@@ -372,7 +417,8 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
               rotation: { x: planet.rotation.x + angularMomentumToAdd.x,
                   y: planet.rotation.y + angularMomentumToAdd.y,
                   z: planet.rotation.z + angularMomentumToAdd.z },
-              shouldCorrectOrbit: false
+              impacts: planet.impacts + 1,
+              lastImpact: simulation.current.time
             }
           : {}),
       }))
@@ -385,8 +431,10 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
 
   const handlePlanetToPlanetCollision = useCallback((collidedPlanet1, momentumToAdd1, collidedPlanet2, momentumToAdd2) => {
 
-    // Both planets see the collision: only one of them plays it
-    if (collidedPlanet1 < collidedPlanet2) playSound('impact', { strength: 1, note: planetNotes[planetData[collidedPlanet1 - 1]?.name] });
+    // Both planets see the collision: only one of them plays it, and counts it
+    const counted = collidedPlanet1 < collidedPlanet2;
+    if (counted) playSound('impact', { strength: 1, note: planetNotes[planetData[collidedPlanet1 - 1]?.name] });
+    const time = simulation.current.time;
 
     setPlanets((prevPlanets) =>
       prevPlanets.map((planet) => {
@@ -394,14 +442,16 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
           return {
             ...planet,
             velocity: planet.velocity.clone().add(momentumToAdd1),
-            shouldCorrectOrbit: false,
+            impacts: planet.impacts + (counted ? 1 : 0),
+            lastImpact: time,
           };
         }
         if (planet.index === collidedPlanet2) {
           return {
             ...planet,
             velocity: planet.velocity.clone().add(momentumToAdd2),
-            shouldCorrectOrbit: false,
+            impacts: planet.impacts + (counted ? 1 : 0),
+            lastImpact: time,
           };
         }
         return planet; // Return the original planet object if no changes are needed
@@ -420,20 +470,7 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
     setPlanets((prevPlanets) => prevPlanets.filter((planet) => planet.index !== collidedPlanetIndex));
   };  
 
-  useEffect(() => {
-    // Use useEffect to respond to changes in starMass
-    // Set shouldCorrectOrbit to false for every planet in the array
-    let shouldCorrectOrbit = false;
-    if ( starMass === 333000 ) {
-      shouldCorrectOrbit = true;
-    }
-    setPlanets((prevPlanets) =>
-      prevPlanets.map((planet) => ({
-        ...planet,
-        shouldCorrectOrbit: shouldCorrectOrbit
-      }))
-    );
-  }, [starMass]);
+  const hoveredPlanetData = planets.find((planet) => planet.index === hoveredPlanet);
 
   // A new random system: every planet back on its orbit at a new place, without asteroids nor explosions (the settings stay)
   useEffect(() => {
@@ -441,8 +478,9 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
     aim.current.active = false;
     setAsteroids([]);
     setExplosions([]);
-    setPlanets(createPlanets(starSize).map((planet) => ({ ...planet, shouldCorrectOrbit: starMass === 333000 })));
+    setPlanets(createPlanets(starSize));
     fallenPlanets.current.clear();
+    setHoveredPlanet(null);
   }, [system]);
 
   return (
@@ -461,6 +499,7 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
+        onPointerLeave={() => setHoveredPlanet(null)}
       >
         <SimulationContext.Provider value={simulation}>
         <SimulationClock simulation={simulation} speed={speed} />
@@ -498,10 +537,12 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
               starPosition={starPosition}
               planets={planets}
               onPlanetCollision={handlePlanetToPlanetCollision}
-              planetGravityFactor={planetGravityFactor}
               trail={planetTrail}
             />
           ))}
+
+          {/* The panel of the planet under the mouse */}
+          {hoveredPlanetData && <PlanetInfo planet={hoveredPlanetData} starMass={starMass} starSize={starSize} />}
 
           {/* Asteroids wait for their model here, so a late load never hides the rest of the scene */}
           <Suspense fallback={null}>

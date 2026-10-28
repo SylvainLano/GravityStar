@@ -122,8 +122,12 @@ const Asteroid = ({ index, position, velocity, angularVelocity, active, moving, 
               const relativePosition = new THREE.Vector3().copy(position).sub(planet.position);
               const explosionPosition = new THREE.Vector3().copy(relativePosition).add(planet.position);
 
+              // The planet takes a share of the relative velocity: more than the masses would give (with their cube
+              // roots), for impacts that show, but less than all of it, so that it never leaves faster than the asteroid
+              // came (50% for an asteroid as heavy as the planet, 13% for Jupiter hit by one Earth mass)
               const relativeVelocity = velocity.clone().sub(planet.velocity);
-              const momentumChange = relativeVelocity.clone().multiplyScalar(Math.cbrt(asteroidMass)/Math.cbrt(planet.mass));
+              const massRatio = Math.cbrt(asteroidMass / planet.mass);
+              const momentumChange = relativeVelocity.clone().multiplyScalar(massRatio / (1 + massRatio));
 
               // Calculate angular momentum change
               const angularMomentumChange = relativePosition.clone().cross(momentumChange);

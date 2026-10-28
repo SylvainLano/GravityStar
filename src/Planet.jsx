@@ -12,8 +12,9 @@ import Trail, { trailDuration } from './Trail';
 // Reused on every frame by all planets, to avoid creating new objects
 const gravitationalForceVector = new THREE.Vector3();
 
+// starPull: how strongly the star pulls this planet, compared with its gravity (see starPullFor in physics.js)
 // trail: the setting of the planets' trails (see Trail.jsx)
-const Planet = ({ index, name, size, position, velocity, rotation, onStarCollision, planetTexture, starMass, starSize, mass, planetSizeFactor, shouldCorrectOrbit, starPosition, planets, planetGravityFactor, onPlanetCollision, trail }) => {
+const Planet = ({ index, name, size, position, velocity, rotation, onStarCollision, planetTexture, starMass, starSize, mass, planetSizeFactor, starPull, starPosition, planets, onPlanetCollision, trail }) => {
   const skin = useSkin();
   const planetRef = useRef(); // Moves along the orbit
   const spinRef = useRef(); // Spins on itself, inside (for Uranus as a character, around its tilted axis)
@@ -46,78 +47,57 @@ const Planet = ({ index, name, size, position, velocity, rotation, onStarCollisi
       // Calculate gravitational force using the calculateGravitationalForce function
       const gravitationalForce = calculateGravitationalForce(starMass, position, starPosition, gravitationalForceVector);
 
-      // Update velocity by adding gravitational force
-      velocity.addScaledVector(gravitationalForce, steps);
+      // Update velocity by adding gravitational force, with the planet's own pull: enough to hold it on its orbit
+      velocity.addScaledVector(gravitationalForce, steps * starPull);
 
-      if (shouldCorrectOrbit) {
+      for (const neighbor of planetNeighbors) {
+        const planet = planets.find((planet) => planet.index === neighbor.index);
+        if ( planet !== undefined ) {
+          // Decrease framesUntilCheck for each neighbor (counted in 60 fps steps)
+          neighbor.framesUntilCheck = Math.max(0, neighbor.framesUntilCheck - steps);
 
-        const distance = velocity.length();
-        const radius = position.length()
-        const angle = Math.asin((distance*steps/2)/radius); // The planet moves by distance*steps this frame
+          // Check if it's time to perform the distance check
+          if (neighbor.framesUntilCheck === 0) {
+            const distance = position.distanceTo(planet.position);
+            let framesToWait = Math.max(1, Math.round(distance/(velocity.length()+planet.velocity.length())));
+            if (distance < ((size + planet.size) * planetSizeFactor)) {
 
-        const newAngle = Math.atan2(position.z, position.x) - angle*2;
+              // Calculate the relative velocity
+              const relativeVelocity = velocity.clone().sub(planet.velocity);
 
-        const newX = position.length() * Math.cos(newAngle);
-        const newZ = position.length() * Math.sin(newAngle);
+              // Calculate the normal vector pointing from this planet to the other
+              const normalVector = planet.position.clone().sub(position).normalize();
 
-        // Point the velocity towards the new position while maintaining the velocity magnitude
-        // (computed directly in velocity, to avoid creating vectors on every frame)
-        velocity.set(newX, 0, newZ).sub(position).normalize().multiplyScalar(distance);
+              // Calculate the impulse
+              const impulse =
+                (2 * relativeVelocity.dot(normalVector)) /
+                (1 / mass + 1 / planet.mass);
 
-      } else {
-        for (const neighbor of planetNeighbors) {
-          const planet = planets.find((planet) => planet.index === neighbor.index);
-          if ( planet !== undefined ) {
-            // Decrease framesUntilCheck for each neighbor (counted in 60 fps steps)
-            neighbor.framesUntilCheck = Math.max(0, neighbor.framesUntilCheck - steps);
+              // calculate the impulseVector
+              const impulseVector = normalVector.multiplyScalar(impulse);
 
-            // Check if it's time to perform the distance check
-            if (neighbor.framesUntilCheck === 0) {
-              const distance = position.distanceTo(planet.position);              
-              let framesToWait = Math.max(1, Math.round(distance/(velocity.length()+planet.velocity.length())));
-              if (distance < ((size + planet.size) * planetSizeFactor)) {
+              // Update the velocities of both planets
+              const momentumToAdd1 = impulseVector.clone().divideScalar(mass);
+              const momentumToAdd2 = impulseVector.clone().divideScalar(-planet.mass);
 
-                // Calculate the relative velocity
-                const relativeVelocity = velocity.clone().sub(planet.velocity);
+              onPlanetCollision(index, momentumToAdd1, planet.index, momentumToAdd2);
 
-                // Calculate the normal vector pointing from this planet to the other
-                const normalVector = planet.position.clone().sub(position).normalize();
+              framesToWait = Math.max(1, Math.round((distance+((size + planet.size) * planetSizeFactor))/(velocity.length()+planet.velocity.length())));
 
-                // Calculate the impulse
-                const impulse =
-                  (2 * relativeVelocity.dot(normalVector)) /
-                  (1 / mass + 1 / planet.mass);
+            } else {
 
-                // calculate the impulseVector
-                const impulseVector = normalVector.multiplyScalar(impulse);
+              // Calculate gravitational force of the planet using the calculateGravitationalForce function
+              const planetGravitationalForce = calculateGravitationalForce(planet.mass, position, planet.position, gravitationalForceVector);
 
-                // Update the velocities of both planets
-                const momentumToAdd1 = impulseVector.clone().divideScalar(mass);
-                const momentumToAdd2 = impulseVector.clone().divideScalar(-planet.mass);
+              // Update velocity by adding gravitational force, at its real strength: the Planet Gravity setting
+              // is for the asteroids only, the planets barely move each other
+              // (once per check rather than per frame: checks happen at the same pace whatever the frame rate)
+              velocity.add(planetGravitationalForce);
 
-                onPlanetCollision(index, momentumToAdd1, planet.index, momentumToAdd2);
-
-                framesToWait = Math.max(1, Math.round((distance+((size + planet.size) * planetSizeFactor))/(velocity.length()+planet.velocity.length())));
-                
-              } else {
-                
-                // Calculate gravitational force of the planet using the calculateGravitationalForce function
-                const planetGravitationalForce = calculateGravitationalForce(planet.mass, position, planet.position, gravitationalForceVector);
-                
-                // Update velocity by adding gravitational force
-                // (once per check rather than per frame: checks happen at the same pace whatever the frame rate)
-                velocity.add(planetGravitationalForce.multiplyScalar(planetGravityFactor));
-              
-                // increase frequency to check on this planet if its gravity is strong enough
-                if ( planetGravitationalForce.length()*planetGravityFactor > 0.0001 ) {
-                  framesToWait = Math.max(1, Math.round(framesToWait / planetGravityFactor));
-                }
-
-              }
-
-              // Set framesUntilCheck for the next check
-              neighbor.framesUntilCheck = framesToWait;
             }
+
+            // Set framesUntilCheck for the next check
+            neighbor.framesUntilCheck = framesToWait;
           }
         }
       }

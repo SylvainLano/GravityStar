@@ -446,6 +446,75 @@ body {
   }
 }
 
+/* Panel of the planet under the mouse (see PlanetInfo.jsx), beside it, in the colors of the open settings panel */
+.planet-info {
+  position: absolute;
+  top: 0;
+  padding: 8px 12px;
+  border: var(--ui-border-width) solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  box-shadow: var(--ui-shadow);
+  background-color: var(--panel-bg-open);
+  color: var(--panel-text-open);
+  font-family: 'Space Mono', monospace;
+  font-size: 8pt;
+  white-space: nowrap;
+}
+
+.planet-info.right {
+  transform: translate(24px, -50%);
+}
+
+.planet-info.left {
+  right: 0;
+  transform: translate(-24px, -50%);
+}
+
+.planet-info-name {
+  font-size: 10pt;
+  font-weight: bold;
+  text-transform: capitalize;
+}
+
+.planet-info-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 6px;
+  border-radius: 50%;
+}
+
+.planet-info-status {
+  margin-bottom: 4px;
+  font-style: italic;
+}
+
+.planet-info table {
+  border-collapse: collapse;
+}
+
+.planet-info th,
+.planet-info td {
+  padding: 0 0 0 10px;
+  text-align: left;
+}
+
+.planet-info tbody th {
+  padding-left: 0;
+  font-weight: normal;
+  opacity: 0.7;
+}
+
+.planet-info thead th {
+  font-weight: bold;
+}
+
+.planet-info-note {
+  margin-top: 4px;
+  font-size: 7pt;
+  opacity: 0.6;
+}
+
 /* Credits for the 3D model and the textures, discreet in the bottom right corner */
 .credits {
   position: absolute;
