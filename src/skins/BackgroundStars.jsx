@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { rgb } from './styleMaterials';
 
 const count = 700;
-const distance = 30;
+const distance = 60; // From the camera in the game, which they follow (see Sky in StarScene.jsx)
 
 // Background stars of the stylized skins, drawn as points of a fixed size on screen.
 // colors: several colors spread at random among the stars, instead of a single color.

@@ -28,10 +28,12 @@ export const surfaceVertexShader = /* glsl */ `
   varying vec3 vWorldNormal;
   varying vec3 vWorldPosition;
   varying vec3 vDirection; // Direction from the object's center, used to stick noise to the surface
+  varying vec4 vCenter; // The object's center on screen (in clip space), to attach strokes drawn on screen to it
 
   void main() {
     vUv = uv;
     vDirection = normalize(position);
+    vCenter = projectionMatrix * viewMatrix * modelMatrix * vec4(0.0, 0.0, 0.0, 1.0);
     vec4 worldPosition = modelMatrix * vec4(position, 1.0);
     vWorldPosition = worldPosition.xyz;
     vWorldNormal = normalize(mat3(modelMatrix) * normal);
@@ -71,6 +73,12 @@ export const helpers = /* glsl */ `
   float brightness(vec3 color) { return dot(color, vec3(0.299, 0.587, 0.114)); }
 
   float hash21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+  float noise2(vec2 x) {
+    vec2 i = floor(x);
+    vec2 f = fract(x);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash21(i), hash21(i + vec2(1, 0)), f.x), mix(hash21(i + vec2(0, 1)), hash21(i + vec2(1, 1)), f.x), f.y);
+  }
   float hash31(vec3 p) {
     p = fract(p * 0.3183099 + 0.1);
     p *= 17.0;
@@ -149,54 +157,153 @@ const celFragmentShader = /* glsl */ `
   }
 `;
 
-// Pastel: soft washes on paper, cool shadows, pigment grain, darker and ragged edges
+// Soft pastel on tinted paper: chalk laid in layers of strokes (a base shaded by the light, cool shadows hatched across it,
+// warm touches of light), which only catch the peaks of the paper's grain and let the paper show between them.
+// The strokes are drawn on screen, attached to the body's center so that they travel with it.
 const pastelFragmentShader = /* glsl */ `
   uniform sampler2D map;
+  uniform vec2 resolution;
   varying vec2 vUv;
   varying vec3 vWorldNormal;
   varying vec3 vWorldPosition;
   varying vec3 vDirection;
+  varying vec4 vCenter;
 
-  vec3 shade(vec3 albedo, float light, float grain) {
-    // Shadows painted in a cool hue rather than just darker
-    vec3 color = mix(albedo * vec3(0.5, 0.56, 0.85), albedo, light);
+  // Strokes of a pastel stick along a direction (in radians), their width and length in screen pixels:
+  // a value between 0 and 1 that changes slowly along each stroke and quickly across them
+  float strokes(vec2 p, float angle, float width, float length) {
+    vec2 along = vec2(cos(angle), sin(angle));
+    vec2 q = vec2(dot(p, along) / length, dot(p, vec2(-along.y, along.x)) / width);
+    return noise2(q) * 0.7 + noise2(q * 2.3 + 11.0) * 0.3;
+  }
 
-    // Pigment granulation, stronger in the washes of shadow
-    return color * (1.0 - (0.15 + 0.25 * (1.0 - light)) * (grain - 0.5) * 2.0);
+  // How much chalk a layer leaves, from 0 to 1: the harder it is pressed, the more of the paper's grain it fills
+  float chalk(float pressure, float stroke, float tooth) {
+    return smoothstep(1.0 - pressure, 1.15 - pressure, stroke * 0.6 + tooth * 0.4);
+  }
+
+  // Light on the surface, from 0 (shadow) to 1 (lit), with an uneven terminator
+  float lightOf(float ndl, float grain) {
+    return smoothstep(-0.25, 0.35, ndl + 0.25 * grain);
   }
 
   void main() {
     vec3 N = normalize(vWorldNormal);
     vec3 V = normalize(cameraPosition - vWorldPosition);
     vec3 L = normalize(lightPosition - vWorldPosition);
+    float grain = fbm3(vDirection * 6.0) - 0.5;
 
-    // Lighter, softer pigments
-    vec3 albedo = toSrgb(texture2D(map, vUv, 1.5).rgb);
-    albedo = mix(vec3(brightness(albedo)), albedo, 0.8);
-    albedo = mix(albedo, vec3(1.0), 0.2);
+    // Screen pixels from the body's center, and the grain of the paper there
+    vec2 center = (vCenter.xy / vCenter.w * 0.5 + 0.5) * resolution;
+    vec2 p = (gl_FragCoord.xy - center) / pixelRatio;
+    vec2 paper = gl_FragCoord.xy / pixelRatio;
+    float tooth = noise2(paper * 0.8) * 0.5 + noise2(paper * 0.23 + 5.0) * 0.3 + hash21(floor(paper)) * 0.2;
 
-    float grain = fbm3(vDirection * 7.0);
+    // Chalky pigments, in masses of color rather than details (a blurred texture), a little lighter
+    vec3 albedo = toSrgb(texture2D(map, vUv, 3.0).rgb);
+    vec3 mid = clamp(mix(vec3(brightness(albedo)), albedo, 1.1), 0.0, 1.0);
+    mid = mix(mid, vec3(1.0, 0.98, 0.94), 0.08);
 
   #ifdef EMISSIVE
-    vec3 color = min(shade(albedo, 1.0, grain) * starLight, vec3(1.0));
+    // The star: brighter towards its middle, without shadows
+    float light = 1.0;
+    float shine = smoothstep(0.5, 1.0, dot(N, V));
+    vec3 dark = mid * 0.8;
   #else
-    // Soft but well defined terminator, so that the planets keep their volume
-    float edge = 0.15 * (grain - 0.5);
-    vec3 spotOnly = shade(albedo, smoothstep(-0.2, 0.25, withSpot(-1.0, N, vWorldPosition) + edge), grain);
-    vec3 lit = shade(albedo, smoothstep(-0.2, 0.25, withSpot(dot(N, L), N, vWorldPosition) + edge), grain);
-    vec3 color = byStarLight(spotOnly, lit);
+    // From the light of the spotlight alone (star switched off) to the star's light, and beyond it for a brighter star
+    float light = clamp(mix(lightOf(withSpot(-1.0, N, vWorldPosition), grain), lightOf(withSpot(dot(N, L), N, vWorldPosition), grain), starLight), 0.0, 1.0);
+    // Touches of light where the star shines the most
+    float shine = smoothstep(0.5, 0.95, dot(N, L) + 0.2 * grain) * starLight;
+    vec3 dark = mid * vec3(0.38, 0.4, 0.62) + vec3(0.06, 0.04, 0.12); // Cool, violet shadows
+  #endif
+    vec3 bright = mix(mid, vec3(1.0, 0.96, 0.84), 0.4); // Warm touches of light
+
+    // Lighter pressure towards the silhouette, so that the edge turns powdery
+    float rim = 1.0 - max(dot(N, V), 0.0);
+    float pressure = 1.0 - smoothstep(0.55, 1.0, rim + 0.25 * grain);
+
+    float baseStrokes = strokes(p, 0.6, 2.4, 14.0);
+    float base = chalk(0.8 * pressure, baseStrokes, tooth);
+    float shadow = chalk((1.0 - light) * 0.9 * pressure, strokes(p, -0.75, 2.0, 11.0), tooth);
+    float highlight = chalk(min(shine, 1.3) * 0.65 * pressure, strokes(p, 0.35, 1.8, 9.0), tooth);
+
+    // The base layer, shaded by the light, its strokes a little lighter or darker from one to the next
+    vec3 color = mix(mix(dark, mid, 0.4), mid, smoothstep(0.0, 0.7, light)) * (0.86 + 0.28 * baseStrokes);
+    color = mix(color, dark, shadow);
+    color = mix(color, bright, highlight);
+  #ifdef EMISSIVE
+    color = min(color * starLight, vec3(1.0));
+  #endif
+    gl_FragColor = vec4(color, max(base, max(shadow, highlight)));
+  }
+`;
+
+// Watercolor: transparent washes on white paper. A first wash of the body's colors, with the white paper left
+// where the light is the strongest, a cool glaze for the shadow with a hard edge, pigment pooling into darker edges
+// as it dries, granulation in the grain of the paper, and blooms where the wash dried unevenly.
+// The washes darken the paper as pigments do (each one lets through some of the light), then are drawn as a color and its opacity.
+const watercolorFragmentShader = /* glsl */ `
+  uniform sampler2D map;
+  varying vec2 vUv;
+  varying vec3 vWorldNormal;
+  varying vec3 vWorldPosition;
+  varying vec3 vDirection;
+
+  void main() {
+    vec3 N = normalize(vWorldNormal);
+    vec3 V = normalize(cameraPosition - vWorldPosition);
+    vec3 L = normalize(lightPosition - vWorldPosition);
+    float wet = fbm3(vDirection * 3.0) - 0.5; // Large unevenness of the washes, stuck to the surface
+    float wetFine = fbm3(vDirection * 9.0 + 3.0) - 0.5;
+    vec2 paper = gl_FragCoord.xy / pixelRatio;
+    float grain = noise2(paper * 0.45) * 0.6 + noise2(paper * 1.3 + 7.0) * 0.4; // Where the pigment settles in the paper
+
+    // Pigments: the body's colors in soft masses
+    vec3 albedo = toSrgb(texture2D(map, vUv, 3.5).rgb);
+    vec3 pigment = clamp(mix(vec3(brightness(albedo)), albedo, 1.15), 0.0, 1.0);
+
+    // The uneven silhouette of the wash, and the pigment pooling along it
+    float rim = 1.0 - max(dot(N, V), 0.0);
+    float edge = rim + 0.18 * wet + 0.06 * wetFine;
+    float inside = 1.0 - smoothstep(0.9, 0.97, edge);
+    float pooling = smoothstep(0.7, 0.92, edge) * inside;
+
+  #ifdef EMISSIVE
+    // The star: a warm wash around a white heart, which darkens when the star is switched off
+    pigment = mix(vec3(0.16, 0.13, 0.22), pigment, min(starLight, 1.0));
+    float shine = smoothstep(0.8, 1.0, dot(N, V) + 0.2 * wet) * 0.8 * min(starLight, 1.0);
+    float shadow = 0.0;
+    float shadowEdge = 0.0;
+  #else
+    // A hard-edged glaze of shadow, from the light of the spotlight alone (star switched off) to the star's light
+    float terminator = withSpot(dot(N, L), N, vWorldPosition) + 0.3 * wet;
+    float lit = mix(step(0.0, withSpot(-1.0, N, vWorldPosition) + 0.3 * wet), step(0.0, terminator), min(starLight, 1.0));
+    float shadow = 1.0 - lit;
+    // Darker along its edge, where the pigment gathered as it dried
+    float shadowEdge = shadow * (1.0 - smoothstep(0.0, 0.15, -terminator)) * min(starLight, 1.0);
+    // White paper left where the star shines the most, more of it for a brighter star
+    float shine = smoothstep(1.05 - 0.2 * starLight, 1.12 - 0.18 * starLight, dot(N, L) + 0.15 * wet) * lit;
   #endif
 
-    // Pigment pooling along the silhouette
-    float rim = 1.0 - max(dot(N, V), 0.0);
-    color *= 1.0 - 0.3 * smoothstep(0.6, 0.95, rim + 0.2 * (grain - 0.5));
+    // First wash, uneven, granulating, and almost none where the light shines the most
+    float wash = 0.7 + 0.25 * wet + 0.15 * (grain - 0.5);
+    wash *= 1.0 - 0.85 * shine;
+    // Blooms: lighter patches with a dark rim, where water flowed back into the drying wash
+    float bloomNoise = fbm3(vDirection * 2.5 + 9.0);
+    float bloom = smoothstep(0.64, 0.67, bloomNoise);
+    wash = wash * (1.0 - 0.35 * bloom) + 0.2 * (smoothstep(0.61, 0.64, bloomNoise) - bloom);
+    wash = clamp(wash + 0.35 * pooling, 0.0, 1.0);
 
-    // Paper grain shared with the background
-    color *= 0.93 + 0.07 * hash21(floor(gl_FragCoord.xy / pixelRatio));
+    // Glaze of shadow: a cool ultramarine mixed with the body's color, granulating more
+    vec3 shadowPigment = mix(pigment * 0.55, vec3(0.3, 0.34, 0.62), 0.55);
+    float glaze = shadow * (0.7 + 0.2 * wet + 0.3 * (grain - 0.5));
+    glaze = clamp(glaze + 0.25 * shadowEdge + 0.25 * shadow * pooling, 0.0, 1.0);
 
-    // Ragged, slightly transparent edge, like a wash drying on paper
-    float alpha = 1.0 - smoothstep(0.85, 1.0, rim + 0.25 * (fbm3(vDirection * 3.0 + 7.0) - 0.5));
-    gl_FragColor = vec4(color, alpha * 0.96);
+    // Over white paper: what each layer lets through, then the color and opacity giving the same result
+    vec3 through = (1.0 - wash * (1.0 - pigment)) * (1.0 - glaze * (1.0 - shadowPigment));
+    float alpha = (1.0 - (1.0 - wash) * (1.0 - glaze)) * inside;
+    vec3 color = alpha > 0.001 ? clamp((through - (1.0 - alpha)) / alpha, 0.0, 1.0) : vec3(1.0);
+    gl_FragColor = vec4(color, alpha);
   }
 `;
 
@@ -282,6 +389,7 @@ const arcadeFragmentShader = /* glsl */ `
 const fragmentShaders = {
   cel: celFragmentShader,
   pastel: pastelFragmentShader,
+  watercolor: watercolorFragmentShader,
   anime: animeFragmentShader,
   arcade: arcadeFragmentShader,
 };
@@ -297,6 +405,7 @@ export function createSurfaceMaterial(style, { map, shared, emissive = false, ri
       spotRange: shared.spotRange,
       starLight: shared.starLight,
       pixelRatio: shared.pixelRatio,
+      resolution: shared.resolution,
       shadowTint: { value: rgb('#6b55b5') }, // Violet shadows
       inkColor: { value: rgb('#1a1440') }, // Midnight blue ink
       rimColor: { value: rgb(rimColor) },
@@ -304,7 +413,7 @@ export function createSurfaceMaterial(style, { map, shared, emissive = false, ri
     defines: emissive ? { EMISSIVE: '' } : {},
     vertexShader: surfaceVertexShader,
     fragmentShader: helpers + fragmentShaders[style],
-    transparent: style === 'pastel',
+    transparent: style === 'pastel' || style === 'watercolor', // The paper shows between the strokes, or through the washes
   });
 }
 
@@ -352,6 +461,26 @@ export function createOutlineMaterial({ shared, thickness, color = '#000000', li
 
 // Halo drawn on a camera-facing square around the star, stronger or weaker with the star's luminosity
 export function createHaloMaterial(style, { shared }) {
+  if (style === 'watercolor') {
+    // A pale yellow bloom around the star, hard-edged with a darker rim where it dried
+    return new THREE.ShaderMaterial({
+      uniforms: { starLight: shared.starLight },
+      vertexShader: flatVertexShader,
+      fragmentShader: helpers + /* glsl */ `
+        varying vec2 vUv;
+        void main() {
+          vec2 c = vUv - 0.5;
+          float n = fbm3(vec3(c * 4.0, 2.7));
+          float edge = length(c) * 2.0 + 0.3 * (n - 0.5);
+          float wash = (1.0 - smoothstep(0.58, 0.62, edge)) * (0.2 + 0.2 * (n - 0.5));
+          float ring = smoothstep(0.45, 0.6, edge) * (1.0 - smoothstep(0.6, 0.63, edge)) * 0.2;
+          gl_FragColor = vec4(1.0, 0.76, 0.32, (wash + ring) * min(starLight, 1.0));
+        }
+      `,
+      transparent: true,
+      depthWrite: false,
+    });
+  }
   if (style === 'pastel') {
     // A warm wash around the star, with an irregular edge
     return new THREE.ShaderMaterial({

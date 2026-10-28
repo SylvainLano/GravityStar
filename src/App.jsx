@@ -4,7 +4,7 @@ import SkinSelector from './SkinSelector';
 import { initialSkinId, rememberSkin } from './skins/skins';
 
 // Create a separate component for simulation parameters
-function SimulationParameters({ speed, onSpeedChange, starSize, onStarSizeChange, planetSizeFactor, onPlanetSizeFactorChange, starMass, onStarMassChange, asteroidMass, onAsteroidMassChange, asteroidGravityFactor, onAsteroidGravityFactorChange, planetGravityFactor, onPlanetGravityFactorChange, starIntensity, onStarIntensityChange, launchMode, onLaunchModeChange }) {
+function SimulationParameters({ speed, onSpeedChange, onRandomSystem, starSize, onStarSizeChange, planetSizeFactor, onPlanetSizeFactorChange, starMass, onStarMassChange, asteroidMass, onAsteroidMassChange, asteroidGravityFactor, onAsteroidGravityFactorChange, planetGravityFactor, onPlanetGravityFactorChange, starIntensity, onStarIntensityChange, launchMode, onLaunchModeChange }) {
   // With a mouse, the panel opens when hovered and closes when the mouse leaves it.
   // On touch screens, where nothing is hovered, a tap on its title opens or closes it.
   const [open, setOpen] = useState(false);
@@ -34,6 +34,12 @@ function SimulationParameters({ speed, onSpeedChange, starSize, onStarSizeChange
           onChange={(e) => onSpeedChange(parseFloat(e.target.value))}
         />
         <span>{speed === 0 ? 'Paused' : speed}</span>
+      </div>
+
+      <div className="parameter">
+        <button type="button" className="panel-button" onClick={onRandomSystem}>
+          New random system (R)
+        </button>
       </div>
 
       <div className="parameter">
@@ -179,20 +185,24 @@ function App() {
   const [launchMode, setLaunchMode] = useState('screen'); // asteroids are created facing the camera ('screen') or in the planets' plane ('orbital')
   const [skinId, setSkinId] = useState(initialSkinId); // the look of the game, see src/skins
   const [speed, setSpeed] = useState(2); // speed of the simulation: 2 is the normal speed, 1 half of it, 0 the pause
+  const [system, setSystem] = useState(0); // increased to start again with a new random system
+  const newRandomSystem = useCallback(() => setSystem((previous) => previous + 1), []);
 
   const changeSkin = useCallback((id) => {
     setSkinId(id);
     rememberSkin(id);
   }, []);
 
-  // The space bar pauses the game, and resumes it at the speed it had before
+  // The space bar pauses the game, and resumes it at the speed it had before. The R key starts a new random system.
   const lastSpeed = useRef(speed);
   useEffect(() => {
     if (speed > 0) lastSpeed.current = speed;
   }, [speed]);
   useEffect(() => {
     const onKeyDown = (e) => {
-      if (e.code !== 'Space' || e.ctrlKey || e.metaKey || e.altKey || e.target.closest?.('input[type="text"], select, textarea')) return;
+      if (e.ctrlKey || e.metaKey || e.altKey || e.target.closest?.('input[type="text"], select, textarea')) return;
+      if ((e.key === 'r' || e.key === 'R') && !e.repeat) newRandomSystem();
+      if (e.code !== 'Space') return;
       // Also keeps the space bar from pressing the focused button (a skin, the settings' title)
       e.preventDefault();
       if (!e.repeat) setSpeed((current) => (current > 0 ? 0 : lastSpeed.current));
@@ -214,10 +224,12 @@ function App() {
         launchMode={launchMode}
         skinId={skinId}
         speed={speed}
+        system={system}
       />
       <SimulationParameters
         speed={speed}
         onSpeedChange={setSpeed}
+        onRandomSystem={newRandomSystem}
         starSize={starSize}
         onStarSizeChange={setStarSize}
         planetSizeFactor={planetSizeFactor}

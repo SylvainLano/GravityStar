@@ -1,5 +1,5 @@
-import { useRef, useMemo, useState, useCallback, useEffect, Suspense } from 'react';
-import { Canvas } from '@react-three/fiber';
+import { useRef, useMemo, useState, useCallback, useEffect, useLayoutEffect, Suspense } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 
 import Asteroid from './Asteroid';
@@ -36,6 +36,13 @@ const dragVelocityScale = 0.009;
 const momentumScale = 0.0005;
 // Reach of the spotlight at the camera
 const spotRange = 4;
+// Zoom: the camera moves along its line of sight towards the star, between these distances
+// (the launch plane and the spotlight move with it)
+const defaultCameraDistance = cameraPosition.length();
+const minCameraDistance = 3;
+const maxCameraDistance = 30;
+// The background stars surround the camera at this distance, as if infinitely far, whatever the zoom (see Sky)
+const skyRadius = 60;
 
 // Reused by the pointer handlers, to avoid creating new objects on every move
 const raycaster = new THREE.Raycaster();
@@ -83,10 +90,28 @@ function createPlanets(starSize) {
   });
 }
 
-function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroidGravityFactor, planetGravityFactor, starIntensity, launchMode, skinId, speed}) {
+// Puts the camera at the chosen position, looking at the star
+function CameraZoom({ position }) {
+  const camera = useThree((state) => state.camera);
+  useLayoutEffect(() => {
+    camera.position.copy(position);
+    camera.lookAt(starPosition);
+  }, [camera, position]);
+  return null;
+}
 
-  const sceneRef = useRef();
+// Keeps the background stars around the camera
+function Sky({ children }) {
+  const sky = useRef();
+  useFrame(({ camera }) => { sky.current.position.copy(camera.position); });
+  return <group ref={sky}>{children}</group>;
+}
+
+// system: a counter, increased to start again with a new random system
+function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroidGravityFactor, planetGravityFactor, starIntensity, launchMode, skinId, speed, system}) {
+
   const skin = findSkin(skinId);
+  const canvasRef = useRef();
   // Clock of the simulation, advanced at the chosen speed (see SimulationClock)
   const simulation = useRef(null);
   if (simulation.current === null) simulation.current = createSimulation();
@@ -113,24 +138,57 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
     return light;
   }, []);
 
-  // Creating the stars in the background
+  // Zoom with the mouse wheel (or a pinch on a touchpad), and the + and - keys
+  const [cameraDistance, setCameraDistance] = useState(defaultCameraDistance);
+  const zoom = cameraDistance / defaultCameraDistance;
+  const viewPosition = useMemo(() => cameraPosition.clone().multiplyScalar(zoom), [zoom]);
+  useEffect(() => {
+    const zoomBy = (factor) => setCameraDistance((distance) => THREE.MathUtils.clamp(distance * factor, minCameraDistance, maxCameraDistance));
+    const onWheel = (e) => {
+      // Also keeps a pinch on a touchpad (a wheel event with the Ctrl key) from zooming the whole page
+      e.preventDefault();
+      const pixels = e.deltaY * (e.deltaMode === 1 ? 33 : 1); // Some browsers count the wheel in lines
+      zoomBy(Math.exp(pixels * (e.ctrlKey ? 0.01 : 0.0015)));
+    };
+    const onKeyDown = (e) => {
+      if (e.ctrlKey || e.metaKey || e.altKey || e.target.closest?.('input[type="text"], select, textarea')) return;
+      if (e.key === '+' || e.key === '=') zoomBy(1 / 1.15);
+      if (e.key === '-') zoomBy(1.15);
+    };
+    const canvas = canvasRef.current;
+    canvas.addEventListener('wheel', onWheel, { passive: false });
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      canvas.removeEventListener('wheel', onWheel);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, []);
+
+  // The spotlight and the plane where asteroids are thrown in front of the camera keep their place relative to the camera
+  useLayoutEffect(() => {
+    spotlight.position.copy(viewPosition);
+    spotlight.distance = spotRange * zoom;
+    spotlight.intensity = 15 * zoom * zoom; // The same light on the launch plane, whose distance grows with the zoom
+    const launchPoint = viewPosition.clone().lerp(starPosition, 0.25);
+    launchPoint.y -= 0.5 * zoom;
+    screenLaunchPlane.setFromNormalAndCoplanarPoint(screenLaunchPlane.normal, launchPoint);
+  }, [spotlight, viewPosition, zoom]);
+
+  // Creating the stars in the background, around the camera (see Sky)
   const numStars = 200;
   const stars = useMemo(() => {
     const starsArray = [];
-    const distanceFromStar = 2 * Math.sqrt(
-      Math.pow(starPosition.x - cameraPosition.x, 2) +
-      Math.pow(starPosition.y - cameraPosition.y, 2) +
-      Math.pow(starPosition.z - cameraPosition.z, 2)
-    ); // Adjust the distance as needed
-  
+    // They had the size of stars twice as far as the camera from the star, so far: they keep the same size on screen
+    const sizeScale = skyRadius / (2 * defaultCameraDistance);
+
     for (let i = 0; i < numStars; i++) {
       const polarAngle = Math.random() * Math.PI * 2; // Random angle in spherical coordinates
       const inclinationAngle = (Math.random() - 0.5) * Math.PI; // Random inclination angle
-      const x = starPosition.x + distanceFromStar * Math.cos(polarAngle) * Math.cos(inclinationAngle);
-      const y = starPosition.y + distanceFromStar * Math.sin(polarAngle) * Math.cos(inclinationAngle);
-      const z = starPosition.z + distanceFromStar * Math.sin(inclinationAngle);
-  
-      const radius = Math.random() * 0.006 + 0.01;
+      const x = skyRadius * Math.cos(polarAngle) * Math.cos(inclinationAngle);
+      const y = skyRadius * Math.sin(polarAngle) * Math.cos(inclinationAngle);
+      const z = skyRadius * Math.sin(inclinationAngle);
+
+      const radius = (Math.random() * 0.006 + 0.01) * sizeScale;
       starsArray.push(<TwinklingStar key={i} position={[x, y, z]} radius={radius} />);
     }
     return starsArray;
@@ -324,8 +382,8 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
         return planet; // Return the original planet object if no changes are needed
       })
     );
-  
-  }, [sceneRef]);
+
+  }, []);
 
   const handlePlanetToStarCollision = (collidedPlanetIndex) => {
     // Update the state to remove the collided planet
@@ -347,8 +405,18 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
     );
   }, [starMass]);
 
+  // A new random system: every planet back on its orbit at a new place, without asteroids nor explosions (the settings stay)
+  useEffect(() => {
+    if (system === 0) return;
+    aim.current.active = false;
+    setAsteroids([]);
+    setExplosions([]);
+    setPlanets(createPlanets(starSize).map((planet) => ({ ...planet, shouldCorrectOrbit: starMass === 333000 })));
+  }, [system]);
+
   return (
       <Canvas
+        ref={canvasRef}
         className="scene"
         shadows
         camera={{ position: cameraPosition }}
@@ -365,9 +433,10 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
       >
         <SimulationContext.Provider value={simulation}>
         <SimulationClock simulation={simulation} speed={speed} />
-        <SkinProvider skinId={skinId} lightPosition={starPosition} starIntensity={starIntensity} spotPosition={cameraPosition} spotRange={spotRange}>
+        <CameraZoom position={viewPosition} />
+        <SkinProvider skinId={skinId} lightPosition={starPosition} starIntensity={starIntensity} spotPosition={viewPosition} spotRange={spotRange * zoom}>
         {/* Set up the scene and camera */}
-        <scene ref={sceneRef}>
+        <scene>
 
           {/* Add the spotlight to the scene */}
           <primitive object={spotlight} />
@@ -379,11 +448,10 @@ function StarScene({starSize, planetSizeFactor, starMass, asteroidMass, asteroid
 
           {/* Add the lights shared by the explosions */}
           {explosionLights.map((entry, i) => <primitive key={`explosion_light_${i}`} object={entry.light} />)}
-        
-          <color attach="background" args={['#000']} />
-          
-          {/* Use the stars variable to create the background (points of a fixed size in the stylized skins) */}
-          {skin.stars ? <BackgroundStars {...skin.stars} /> : stars}
+
+          {/* Use the stars variable to create the background (points of a fixed size in the stylized skins).
+              The color behind them is drawn by CSS, behind the transparent canvas (see styles.css). */}
+          <Sky>{skin.stars ? <BackgroundStars {...skin.stars} /> : stars}</Sky>
 
           {/* Use the particles variable to create the animation of the star */}
           {starParticles}

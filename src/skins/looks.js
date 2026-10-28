@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { createSurfaceMaterial, createOutlineMaterial, createHaloMaterial } from './styleMaterials';
 import { createNekoCharacterLook, createNekoStarLook, createNekoAsteroidLook } from './nekoNebula';
 
-// Materials of the stylized looks (cel, pastel, anime, arcade or neko), one function per kind of element.
+// Materials of the stylized looks (cel, pastel, watercolor, anime, arcade or neko), one function per kind of element.
 // shared holds the uniforms shared by every stylized material (see createSharedUniforms).
 // The neko style (Neko Nebula) draws the planets and the star as characters: their looks then only hold character,
 // the materials of the character (see NekoNebulaCharacters.jsx).
@@ -41,8 +41,8 @@ export function createSunLook(style, { shared, map }) {
   return {
     material: createSurfaceMaterial(style, { map: sunMap, shared, emissive: true }),
     outline: createStyleOutline(style, shared, 2, false),
-    halo: style === 'pastel' || style === 'anime' ? createHaloMaterial(style, { shared }) : null,
-    haloSize: style === 'anime' ? 10 : 5.7,
+    halo: style === 'pastel' || style === 'anime' || style === 'watercolor' ? createHaloMaterial(style, { shared }) : null,
+    haloSize: { anime: 10, watercolor: 4.5 }[style] ?? 5.7,
   };
 }
 

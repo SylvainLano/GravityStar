@@ -18,13 +18,23 @@ body {
   background-color: #000;
 }
 
-/* Pastel: paper behind the transparent canvas */
-.lab.pastel {
-  background-color: #efe6d3;
+/* Watercolor: the game's white cold-pressed paper behind the transparent canvas (see .App[data-skin='watercolor'] in styles.css) */
+.lab.watercolor {
+  background-color: #f8f5ee;
   background-image:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.42 0 0 0 0 0.35 0 0 0 0 0.25 0.5 0 0 0 -0.15'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
-    radial-gradient(ellipse at 30% 20%, rgba(255, 255, 255, 0.5), transparent 60%),
-    radial-gradient(ellipse at 80% 90%, rgba(180, 160, 130, 0.25), transparent 55%);
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.045' numOctaves='4' stitchTiles='stitch'/%3E%3CfeDiffuseLighting surfaceScale='1.5' lighting-color='white'%3E%3CfeDistantLight azimuth='225' elevation='60'/%3E%3C/feDiffuseLighting%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)' opacity='0.45'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse at 30% 20%, rgba(255, 255, 255, 0.6), transparent 60%),
+    radial-gradient(ellipse at 80% 90%, rgba(200, 190, 170, 0.18), transparent 55%);
+  background-blend-mode: multiply, normal, normal;
+}
+
+/* Pastel: the game's grey-blue pastel paper behind the transparent canvas (see .App[data-skin='pastel'] in styles.css) */
+.lab.pastel {
+  background-color: #7d889b;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0.55 0 0 0 -0.22'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse at 30% 20%, rgba(255, 255, 255, 0.12), transparent 60%),
+    radial-gradient(ellipse at 80% 90%, rgba(30, 35, 60, 0.25), transparent 55%);
 }
 
 /* 16-bit arcade and Neko Nebula: big pixels and scanlines */

@@ -14,10 +14,11 @@ import { NekoPlanet, NekoStar } from '../skins/NekoNebulaCharacters';
 const styles = [
   { id: 'realistic', name: 'Realistic', description: 'The current look: photo textures and physical lighting.' },
   { id: 'cel', name: 'Cel shading', description: 'Comic book: vivid flattened textures, three light bands, violet shadows, ink outline and hatching.' },
-  { id: 'pastel', name: 'Pastel', description: 'Soft washes on paper: cool shadows rather than dark ones, pigment grain, darker and ragged edges.' },
+  { id: 'pastel', name: 'Pastel', description: 'Soft pastel on grey-blue paper: layers of chalk strokes, cool hatched shadows, warm touches of light, the paper showing between the strokes.' },
   { id: 'anime', name: 'Anime', description: 'Hard terminator with a warm band, screentone in the shadow, atmosphere rim and lens glare.' },
   { id: 'arcade', name: '16-bit arcade', description: 'Low resolution, a few light levels, limited palette and ordered dithering.' },
   { id: 'neko', name: 'Neko Nebula', description: 'Homage to Parodius: flat vivid colors drawn from the real textures, sprite lighting, and the planets and the star as characters.' },
+  { id: 'watercolor', name: 'Watercolor', description: 'Transparent washes on white paper: highlights left white, a hard-edged cool glaze for the shadow, pigment pooling at the edges, granulation and blooms.' },
 ];
 
 // Background of each style (pastel has no background color: its paper is drawn by CSS behind the canvas),
@@ -26,6 +27,7 @@ const backdrops = {
   realistic: { background: '#000000', stars: { color: '#ffffff', size: 2, round: true, opacity: 0.8 } },
   cel: { background: '#252c70' },
   pastel: { background: null },
+  watercolor: { background: null },
   anime: { background: '#050a1f' },
   arcade: { background: '#000000' },
   neko: { background: '#120a3a' },
@@ -71,7 +73,7 @@ function buildLooks({ maps, sunMap, gltf, shared }) {
   };
 
   // The same materials as in the game
-  for (const style of ['cel', 'pastel', 'anime', 'arcade', 'neko']) {
+  for (const style of ['cel', 'pastel', 'watercolor', 'anime', 'arcade', 'neko']) {
     looks[style] = {
       planets: Object.fromEntries(planets.map((planet) => [planet.name, createPlanetLook(style, { shared, map: maps[planet.name], name: planet.name })])),
       sun: createSunLook(style, { shared, map: sunMap }),
@@ -230,7 +232,7 @@ export default function Lab() {
   const [pixelSize, setPixelSize] = useState(1.5);
   const [planetSizeFactor, setPlanetSizeFactor] = useState(2);
 
-  // Keys 1 to 6 switch between the styles, G between the close-up and game views
+  // Keys 1 to 7 switch between the styles, G between the close-up and game views
   useEffect(() => {
     const onKeyDown = (e) => {
       const keyStyle = styles[Number(e.key) - 1];

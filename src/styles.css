@@ -31,6 +31,8 @@ body {
   --panel-text-open: #000;
   --swatch-active: #fff;
   --accent: auto; /* Sliders */
+  --credits-text: #777;
+  --credits-link: #999;
 }
 
 /* Comic: caption boxes of a comic book, inked, on an ultramarine sky (rather than black, so that the ink outlines stand out) */
@@ -101,22 +103,45 @@ body {
   letter-spacing: 1px;
 }
 
-/* Pastel: dark ink on paper */
-.App[data-skin='pastel'] {
+/* Watercolor: ink on white cold-pressed paper, its bumps lit from the top left */
+.App[data-skin='watercolor'] {
   --ui-text: #3e4470;
   --ui-border: #3e4470;
   --ui-radius: 12px;
-  --panel-bg: rgba(255, 250, 240, 0.4);
+  --panel-bg: rgba(255, 255, 255, 0.4);
   --panel-title: #3e4470;
-  --panel-bg-open: rgba(255, 250, 240, 0.85);
+  --panel-bg-open: rgba(255, 255, 255, 0.88);
   --panel-text-open: #3e4470;
   --swatch-active: #3e4470;
-  --accent: #c4574f;
-  background-color: #efe6d3;
+  --accent: #4a6fa5;
+  --credits-text: #8a8fa3;
+  --credits-link: #3e4470;
+  background-color: #f8f5ee;
   background-image:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.42 0 0 0 0 0.35 0 0 0 0 0.25 0.5 0 0 0 -0.15'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
-    radial-gradient(ellipse at 30% 20%, rgba(255, 255, 255, 0.5), transparent 60%),
-    radial-gradient(ellipse at 80% 90%, rgba(180, 160, 130, 0.25), transparent 55%);
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.045' numOctaves='4' stitchTiles='stitch'/%3E%3CfeDiffuseLighting surfaceScale='1.5' lighting-color='white'%3E%3CfeDistantLight azimuth='225' elevation='60'/%3E%3C/feDiffuseLighting%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)' opacity='0.45'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse at 30% 20%, rgba(255, 255, 255, 0.6), transparent 60%),
+    radial-gradient(ellipse at 80% 90%, rgba(200, 190, 170, 0.18), transparent 55%);
+  background-blend-mode: multiply, normal, normal;
+}
+
+/* Pastel: chalk on a grey-blue pastel paper, whose grain catches light specks */
+.App[data-skin='pastel'] {
+  --ui-text: #f4efe6;
+  --ui-border: #f4efe6;
+  --ui-radius: 12px;
+  --panel-bg: rgba(244, 239, 230, 0.15);
+  --panel-title: #f4efe6;
+  --panel-bg-open: rgba(244, 239, 230, 0.92);
+  --panel-text-open: #2b3045;
+  --swatch-active: #f4efe6;
+  --accent: #e8735a;
+  --credits-text: #d3d8e2;
+  --credits-link: #f4efe6;
+  background-color: #7d889b;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0.55 0 0 0 -0.22'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse at 30% 20%, rgba(255, 255, 255, 0.12), transparent 60%),
+    radial-gradient(ellipse at 80% 90%, rgba(30, 35, 60, 0.25), transparent 55%);
 }
 
 /* Arcade and Neko Nebula: big pixels, scaled up without smoothing, and scanlines over the scene */
@@ -191,6 +216,17 @@ body {
 .title-toggle {
   padding: 0;
   border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.panel-button {
+  margin: 4px 0;
+  padding: 3px 10px;
+  border: 1px solid currentColor;
+  border-radius: var(--ui-radius);
   background: none;
   color: inherit;
   font: inherit;
@@ -327,10 +363,10 @@ body {
   max-width: calc(100% - 20px);
   font-family: 'Space Mono', monospace;
   font-size: 8pt;
-  color: #777;
+  color: var(--credits-text);
   text-align: right;
 }
 
 .credits a {
-  color: #999;
+  color: var(--credits-link);
 }

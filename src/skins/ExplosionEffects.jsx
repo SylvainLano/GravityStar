@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { useSimulation } from '../SimulationClock';
 
 // What each stylized skin adds to an explosion, on top of its debris: an onomatopoeia for the comic book,
-// a splash of paint for the pastel, pixel sparks for the arcade, stars and hearts for Neko Nebula, an impact flash for the anime.
+// smudges of chalk for the pastel, splashes of paint for the watercolor, pixel sparks for the arcade, stars and hearts for Neko Nebula, an impact flash for the anime.
 // They are sprites of a fixed size on screen, which follow the simulated time, so that they stop during a pause.
 
 // Pictures drawn once on small canvases, shared by every explosion
@@ -63,7 +63,7 @@ function wordTexture(word) {
   });
 }
 
-// A soft, uneven blot of paint, in white so that its sprite gives it a color
+// A soft, uneven smudge of chalk, in white so that its sprite gives it a color
 function blotTexture() {
   return canvasTexture('blot', 128, (c, size) => {
     let seed = 5;
@@ -166,10 +166,23 @@ const randomDirection = () => new THREE.Vector3().randomDirection();
 const effects = {
   cel: () => [{ map: wordTexture(pick(['BOOM!', 'KRAK!', 'POW!', 'BLAM!', 'KABOOM!'])), scale: 0.3, rotation: (Math.random() - 0.5) * 0.5, life: 1700, pop: true, overlay: true }],
   pastel: () => Array.from({ length: 4 }, () => ({
-    map: blotTexture(), color: pick(['#e8a87c', '#8f9ad6', '#c39b7a', '#f0a35e', '#c4574f']),
+    map: blotTexture(), color: pick(['#f6d38c', '#f2a07b', '#c9d2f0', '#f4efe6', '#e8735a']),
     scale: 0.1 + Math.random() * 0.08, grow: [0.4, 1.3], rotation: Math.random() * Math.PI * 2,
     offset: randomDirection().multiplyScalar(0.04), life: 2600, opacity: 0.6,
   })),
+  // Big blots of paint and a spatter of small drops flying out
+  watercolor: () => [
+    ...Array.from({ length: 3 }, () => ({
+      map: blotTexture(), color: pick(['#e07a5f', '#4a6fa5', '#f2cc8f', '#81b29a']),
+      scale: 0.1 + Math.random() * 0.08, grow: [0.5, 1.2], rotation: Math.random() * Math.PI * 2,
+      offset: randomDirection().multiplyScalar(0.03), life: 2800, opacity: 0.7,
+    })),
+    ...Array.from({ length: 8 }, () => ({
+      map: blotTexture(), color: pick(['#e07a5f', '#4a6fa5', '#3d405b']),
+      scale: 0.012 + Math.random() * 0.012, rotation: Math.random() * Math.PI * 2,
+      drift: randomDirection().multiplyScalar(0.004 + Math.random() * 0.004), life: 2200, opacity: 0.85,
+    })),
+  ],
   arcade: () => Array.from({ length: 16 }, () => ({
     color: pick(['#ffff33', '#ff6600', '#ffffff', '#ff3333']), scale: 0.014,
     drift: randomDirection().multiplyScalar(0.006 + Math.random() * 0.008), life: 600 + Math.random() * 300, blink: true,
